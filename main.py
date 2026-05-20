@@ -66,7 +66,6 @@ class MyApp(App):
 
         # 必要なKVファイルをここで読み込む
         Builder.load_file('main.kv')
-        Builder.load_file('camera.kv')
 
         # 言語をロード
         self.lang = 'ja'
