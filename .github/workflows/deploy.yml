@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build-and-deploy:
-    runs-runs-on: ubuntu-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -27,7 +27,6 @@ jobs:
           # WebAssemblyビルドに必要なツール類をインストール
           pip install git+https://github.com/kivy/kivy-ios.git@master || true
           pip install brg-kivy-wasm || true
-          # もし特定のパッケージが必要な場合は、ここに「pip install パッケージ名」を追加してください
 
       - name: Build WebAssembly
         run: |
