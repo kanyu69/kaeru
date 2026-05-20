@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Kivy Web Barcode Scanner - Debug Mode</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.js"></script>
+
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: #000; overflow: hidden;
+            font-family: sans-serif;
+        }
+        #camera-container {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1;
+            display: none;
+        }
+        #camera-video {
+            width: 100%; height: 100%; object-fit: cover;
+        }
+        /* Kivyの画面をシミュレートするデバッグUI */
+        #kivy-web-ui {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 2;
+            background-color: #ffffff;
+            transition: background 0.3s;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        button {
+            padding: 15px 30px; margin: 10px; font-size: 16px;
+            cursor: pointer; background-color: #339966; color: white;
+            border: none; border-radius: 5px;
+        }
+        button:hover { background-color: #287a51; }
+        #loading {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #222; color: white;
+            display: flex; justify-content: center; align-items: center;
+            z-index: 999; font-size: 1.2rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading">Python環境（Pyodide）を起動中...</div>
+
+    <div id="camera-container">
+        <video id="camera-video" autoplay playsinline muted></video>
+    </div>
+
+    <div id="kivy-web-ui">
+        <h2 id="result-label" style="color: #333;">Barcode: None</h2>
+        <button onclick="startScannerFromUI()">Start Scanner (カメラ起動)</button>
+        <button onclick="stopScannerFromUI()">Stop Scanner (ストップ)</button>
+        <button onclick="openLibraryFromUI()">Open Photo Library (画像選択)</button>
+    </div>
+
+    <script src="web_bridge.js"></script>
+
+    <script>
+        let pyodideInstance;
+        let pythonBridge;
+
+        // カメラが起動した時に背面の映像が見えるように透過させる処理
+        function makeKivyTransparent() {
+            document.getElementById('kivy-web-ui').style.background = 'transparent';
+            document.getElementById('result-label').style.color = '#ffffff';
+        }
+
+        async function main() {
+            // 1. Pyodideをロード
+            let pyodide = await loadPyodide();
+            pyodideInstance = pyodide;
+            
+            // 2. ブラウザで100%動くPythonブリッジロジックを直接注入
+            await pyodide.runPythonAsync(`
+import js
+from pyodide.ffi import create_proxy
+
+class WebBridge:
+    def __init__(self):
+        self.last_barcode = None
+        self._callback_proxy = create_proxy(self.set_detected_barcode)
+        print("[Python] WebBridgeが正常に初期化されました。")
+
+    def set_detected_barcode(self, code):
+        if code:
+            self.last_barcode = str(code)
+            print(f"[Python Debug] バーコードを検出: {self.last_barcode}")
+
+    def consume_last_barcode(self):
+        if not self.last_barcode:
+            return None
+        ret = self.last_barcode
+        self.last_barcode = None
+        return ret
+
+    def start_jan_scanner(self):
+        js.makeKivyTransparent()
+        js.startWebScanner(self._callback_proxy)
+
+    def stop_jan_scanner(self):
+        js.stopWebScanner()
+
+    def vibrate(self):
+        js.vibrateWeb()
+
+    def play_system_sound(self, sound_id):
+        js.playWebSystemSound(int(sound_id))
+
+    def open_photo_library(self):
+        js.openWebPhotoLibrary(self._callback_proxy)
+
+bridge_instance = WebBridge()
+            `);
+            
+            pythonBridge = pyodide.globals.get("bridge_instance");
+
+            // 起動完了したらローディングを消す
+            document.getElementById('loading').style.display = 'none';
+
+            // 3. 0.5秒ごとにPython側の値（バーコード）を取りに行く定期監視ループ
+            setInterval(() => {
+                if(pythonBridge) {
+                    let code = pythonBridge.consume_last_barcode();
+                    if(code) {
+                        document.getElementById('result-label').innerText = "Barcode: " + code;
+                        pythonBridge.vibrate();
+                        pythonBridge.play_system_sound(1000);
+                    }
+                }
+            }, 500);
+        }
+
+        // ボタンとPythonロジックの紐付け
+        function startScannerFromUI() { if(pythonBridge) pythonBridge.start_jan_scanner(); }
+        function stopScannerFromUI() { 
+            if(pythonBridge) pythonBridge.stop_jan_scanner(); 
+            document.getElementById('kivy-web-ui').style.background = '#ffffff';
+            document.getElementById('result-label').style.color = '#333333';
+        }
+        function openLibraryFromUI() { if(pythonBridge) pythonBridge.open_photo_library(); }
+
+        main();
+    </script>
+</body>
+</html>
