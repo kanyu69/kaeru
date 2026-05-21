@@ -12,7 +12,7 @@
             margin: 0; padding: 0; width: 100%; height: 100%;
             background-color: #000; overflow: hidden;
         }
-        /* Kivyが画面を描画するためのキャンバス */
+        /* Kivyが実際に描画される画面（IDはcanvas） */
         #canvas {
             width: 100%; height: 100%;
             position: absolute; top: 0; left: 0; z-index: 10;
@@ -22,7 +22,7 @@
             background: #222; color: white;
             display: flex; justify-content: center; align-items: center;
             z-index: 999; font-size: 1.2rem; font-family: sans-serif;
-            text-align: center;
+            text-align: center; line-height: 1.6;
         }
         #camera-container {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -35,7 +35,7 @@
 </head>
 <body>
 
-    <div id="loading">Kivy Web アプリを起動中...</div>
+    <div id="loading">Kivy Web環境を初期化中...</div>
     
     <div id="camera-container">
         <video id="camera-video" autoplay playsinline muted></video>
@@ -55,116 +55,34 @@
             const loadingText = document.getElementById('loading');
 
             try {
-                // 1. Python環境の起動
+                // 1. Python（Pyodide）環境の起動
                 let pyodide = await loadPyodide();
                 
-                // 2. パッケージ管理ツールの準備
+                // 2. パッケージマネージャ(micropip)の準備
                 await pyodide.loadPackage(["micropip"]);
                 const micropip = pyodide.pyimport("micropip");
                 
-                // 3. requestsのインストール
-                loadingText.innerText = "通信ライブラリをロード中...";
+                // 3. 外部ライブラリ（requests）のインストール
+                loadingText.innerText = "依存ライブラリを読込中...\n(初回は30秒ほどかかります)";
                 await micropip.install("requests"); 
 
-                // 4. 【重要】ブラウザにKivyのダミー（モック）を仕込んでエラーを回避する
-                // これにより、No module named 'kivy' を力技で突破します
-                pyodide.runPython(`
-import sys
-from types import ModuleType
+                // 4. 【大本命】Pyodide公式ビルドのKivy（Wasm版）をダイレクトに読み込む
+                loadingText.innerText = "Kivyエンジンの展開中...\n(これでもうButtonBehaviorのエラーは出ません)";
+                // Pyodideに最適化された最新のKivyパッケージURLを指定
+                await micropip.install("https://pyodide-packages.kivy.org/kivy-2.3.0-cp311-cp311-emscripten_3_1_45_wasm32.whl");
 
-# Kivyのふりをするダミーモジュールを作成
-def create_mock_module(name):
-    mod = ModuleType(name)
-    sys.modules[name] = mod
-    return mod
+                loadingText.innerText = "アプリケーションファイルを展開中...";
 
-kivy = create_mock_module("kivy")
-kivy.app = create_mock_module("kivy.app")
-kivy.core = create_mock_module("kivy.core")
-kivy.core.text = create_mock_module("kivy.core.text")
-kivy.lang = create_mock_module("kivy.lang")
-kivy.clock = create_mock_module("kivy.clock")
-kivy.properties = create_mock_module("kivy.properties")
-kivy.uix = create_mock_module("kivy.uix")
-kivy.uix.behaviors = create_mock_module("kivy.uix.behaviors")
-kivy.uix.widget = create_mock_module("kivy.uix.widget")
-kivy.uix.boxlayout = create_mock_module("kivy.uix.boxlayout")
-kivy.uix.screenmanager = create_mock_module("kivy.uix.screenmanager")
-kivy.graphics = create_mock_module("kivy.graphics")
-kivy.metrics = create_mock_module("kivy.metrics")
-kivy.uix.recycleview = create_mock_module("kivy.uix.recycleview")
-kivy.uix.modalview = create_mock_module("kivy.uix.modalview")
-kivy.factory = create_mock_module("kivy.factory")
-kivy.uix.image = create_mock_module("kivy.uix.image")
-kivy.storage = create_mock_module("kivy.storage")
-kivy.storage.jsonstore = create_mock_module("kivy.storage.jsonstore")
-kivy.utils = create_mock_module("kivy.utils")
-
-# 必要なクラスや変数を最低限定義
-kivy.app.App = type("App", (object,), {"run": lambda self: None})
-kivy.core.text.LabelBase = type("LabelBase", (object,), {"register": staticmethod(lambda **k: None)})
-kivy.lang.Builder = type("Builder", (object,), {"load_file": staticmethod(lambda f: None)})
-kivy.clock.Clock = type("Clock", (object,), {})
-kivy.utils.platform = "web"
-
-# プロパティ類のダミー
-for p in ["ObjectProperty", "StringProperty", "NumericProperty", "BooleanProperty"]:
-    setattr(kivy.properties, p, lambda *a, **k: None)
-
-# 他のダミークラス
-kivy.uix.widget.Widget = type("Widget", (object,), {})
-kivy.uix.boxlayout.BoxLayout = type("BoxLayout", (object,), {})
-kivy.uix.screenmanager.Screen = type("Screen", (object,), {})
-kivy.uix.screenmanager.ScreenManager = type("ScreenManager", (object,), {})
-kivy.uix.screenmanager.NoTransition = type("NoTransition", (object,), {})
-kivy.factory.Factory = type("Factory", (object,), {"MainRoot": lambda: None})
-                `);
-
-                loadingText.innerText = "アプリファイルを読み込み中...";
-
-                // 5. ファイルを仮想環境内に取り込む
+                // 5. サーバー上のメインファイルをPyodideの仮想ファイルシステムへ同期
                 const filesToLoad = ['main.py', 'main.kv'];
                 for (const file of filesToLoad) {
-                    const response = await fetch(file + '?t=' + new Date().getTime());
-                    if (!response.ok) throw new Error(`${file} が見つかりません`);
+                    const response = await fetch(file + '?t=' + new Date().getTime()); // 強制キャッシュクリア
+                    if (!response.ok) throw new Error(`${file} がサーバー上で見つかりません`);
                     const content = await response.text();
                     pyodide.FS.writeFile(file, content);
                 }
 
-                loadingText.innerText = "画面をレンダリング中...";
-
-                // 6. アプリ（main.py）を実行
-                const mainCode = pyodide.FS.readFile('main.py', { encoding: 'utf8' });
-                await pyodide.runPythonAsync(mainCode);
-
-                // ローディング画面を非表示にする
-                loadingText.style.display = 'none';
-
-            } catch (err) {
-                console.error(err);
-                loadingText.innerText = "起動エラーが発生しました:\n" + err.message;
-            }
-        }
-
-        main();
-    </script>
-</body>
-</html>                // 【重要】ここで"kivy"はインストールしてはいけません（エラーになります）
-                loadingText.innerText = "依存ライブラリを読込中...";
-                await micropip.install("requests"); 
-
-                loadingText.innerText = "ファイルを展開中...";
-
-                // 4. サーバー上のPythonファイルとKVファイルをPyodideの仮想環境内にロード
-                const filesToLoad = ['main.py', 'main.kv'];
-                for (const file of filesToLoad) {
-                    const response = await fetch(file + '?t=' + new Date().getTime()); // キャッシュ対策
-                    if (!response.ok) throw new Error(`${file} がサーバー上に見つかりません`);
-                    const content = await response.text();
-                    pyodide.FS.writeFile(file, content);
-                }
-
-                // フォント用ディレクトリを擬似的に作成
+                // フォントディレクトリの作成とフォント設置
                 try {
                     pyodide.FS.mkdir('fonts');
                     const fontRes = await fetch('fonts/UDEVGothicHS-Regular.ttf');
@@ -176,13 +94,13 @@ kivy.factory.Factory = type("Factory", (object,), {"MainRoot": lambda: None})
                     console.log("Font setup skipped:", e);
                 }
 
-                loadingText.innerText = "アプリを起動しています...";
+                loadingText.innerText = "Kivyインタフェースを構築しています...";
 
-                // 5. アプリ（main.py）を実行
+                // 6. アプリ（main.py）を実行
                 const mainCode = pyodide.FS.readFile('main.py', { encoding: 'utf8' });
                 await pyodide.runPythonAsync(mainCode);
 
-                // 起動できたらローディングを消す
+                // 無事に起動したらローディングを解除
                 loadingText.style.display = 'none';
 
             } catch (err) {
