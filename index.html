@@ -12,20 +12,20 @@
             margin: 0; padding: 0; width: 100%; height: 100%;
             background-color: #000; overflow: hidden;
         }
-        /* Kivyの描画キャンバス：画面全体を覆う */
+        /* Kivyアプリが描画されるメインキャンバス */
         #canvas {
             width: 100%; height: 100%;
             position: absolute; top: 0; left: 0; z-index: 10;
         }
-        /* ローディング画面 */
+        /* 起動中のローディング画面 */
         #loading {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: #222; color: white;
             display: flex; justify-content: center; align-items: center;
             z-index: 999; font-size: 1.2rem; font-family: sans-serif;
-            text-align: center; padding: 20px;
+            text-align: center;
         }
-        /* カメラ映像用コンテナ（背面に配置） */
+        /* カメラ表示用の背面コンテナ */
         #camera-container {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             z-index: 1; display: none;
@@ -48,7 +48,6 @@
     <script src="web_bridge.js"></script>
 
     <script>
-        // Kivyの背景を透明にする関数（カメラ使用時用）
         function makeKivyTransparent() {
             const canvas = document.getElementById('canvas');
             if (canvas) canvas.style.opacity = "0.5";
@@ -58,30 +57,30 @@
             const loadingText = document.getElementById('loading');
 
             try {
-                // 1. Pyodideのロード
+                // 1. Python環境（Pyodide）を初期化
                 let pyodide = await loadPyodide();
                 
-                // 2. パッケージ管理ツール(micropip)の準備
+                // 2. パッケージマネージャを準備
                 await pyodide.loadPackage(["micropip"]);
                 const micropip = pyodide.pyimport("micropip");
                 
-                // 3. 依存ライブラリのインストール
-                loadingText.innerText = "依存ライブラリ (requestsなど) をインストール中...\n(初回は数十秒かかります)";
+                // 3. 必要な外部ライブラリ（requestsなど）のインストール
+                // 【重要】ここで"kivy"はインストールしてはいけません（エラーになります）
+                loadingText.innerText = "依存ライブラリを読込中...";
                 await micropip.install("requests"); 
-                await micropip.install("kivy"); 
 
-                loadingText.innerText = "ファイルを読み込み中...";
+                loadingText.innerText = "ファイルを展開中...";
 
-                // 4. サーバー上のPythonファイルとKVファイルを仮想環境内に取り込む
+                // 4. サーバー上のPythonファイルとKVファイルをPyodideの仮想環境内にロード
                 const filesToLoad = ['main.py', 'main.kv'];
                 for (const file of filesToLoad) {
-                    const response = await fetch(file + '?t=' + new Date().getTime()); // キャッシュ回避
-                    if (!response.ok) throw new Error(`${file} が見つかりません。アップロードされているか確認してください。`);
+                    const response = await fetch(file + '?t=' + new Date().getTime()); // キャッシュ対策
+                    if (!response.ok) throw new Error(`${file} がサーバー上に見つかりません`);
                     const content = await response.text();
                     pyodide.FS.writeFile(file, content);
                 }
 
-                // フォント用ディレクトリの作成と配置（任意）
+                // フォント用ディレクトリを擬似的に作成
                 try {
                     pyodide.FS.mkdir('fonts');
                     const fontRes = await fetch('fonts/UDEVGothicHS-Regular.ttf');
@@ -90,25 +89,24 @@
                         pyodide.FS.writeFile('fonts/UDEVGothicHS-Regular.ttf', new Uint8Array(fontData));
                     }
                 } catch (e) {
-                    console.log("Font directory or file setup skipped:", e);
+                    console.log("Font setup skipped:", e);
                 }
 
-                loadingText.innerText = "アプリを開始します...";
+                loadingText.innerText = "アプリを起動しています...";
 
-                // 5. アプリ実行
+                // 5. アプリ（main.py）を実行
                 const mainCode = pyodide.FS.readFile('main.py', { encoding: 'utf8' });
                 await pyodide.runPythonAsync(mainCode);
 
-                // 起動成功したらローディング画面を非表示にする
+                // 起動できたらローディングを消す
                 loadingText.style.display = 'none';
 
             } catch (err) {
                 console.error(err);
-                loadingText.innerText = "エラーが発生しました:\n" + err.message;
+                loadingText.innerText = "起動エラーが発生しました:\n" + err.message;
             }
         }
 
-        // 実行開始
         main();
     </script>
 </body>
