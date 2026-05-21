@@ -2,7 +2,7 @@ name: Deploy Kivy Web App
 
 on:
   push:
-    branches: [ main ] # mainブランチにコードが送信されたら自動起動
+    branches: [ main ]
 
 permissions:
   contents: read
@@ -16,31 +16,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
+      - name: Create Dist Package
         run: |
-          python -m pip install --upgrade pip
-          # WebAssemblyビルドに必要なツール類をインストール
-          pip install git+https://github.com/kivy/kivy-ios.git@master || true
-          pip install brg-kivy-wasm || true
-
-      - name: Build WebAssembly
-        run: |
-          # クラウド上のLinux環境でKivyをWeb用データへ自動変換を試みる
-          if python -m bidi_kivy_wasm_build --output ./dist; then
-            echo "bidi_kivy_wasm_build succeeded."
-          else
-            echo "bidi_kivy_wasm_build failed. Falling back to manual copy..."
-            # distディレクトリをあらかじめ作成
-            mkdir -p ./dist
-            
-            # dist自身や、隠しファイル(.gitなど)を除外して安全にコピー
-            rsync -rr --exclude='dist' --exclude='.git' --exclude='.github' ./ ./dist/
+          # 1. 公開用のdistフォルダを作成
+          mkdir -p ./dist
+          
+          # 2. 必要なファイルをすべてdistフォルダに直接集める
+          cp main.py ./dist/
+          cp main.kv ./dist/
+          cp index.html ./dist/
+          cp web_bridge.js ./dist/ || true
+          
+          # 3. フォントフォルダがあれば丸ごとコピー
+          if [ -d "fonts" ]; then
+            cp -r fonts ./dist/
           fi
+          
+          echo "Files inside dist:"
+          ls -la ./dist
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
