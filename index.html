@@ -1,39 +1,115 @@
-async function main() {
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kaeru App</title>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: #000; overflow: hidden;
+        }
+        /* Kivyの描画キャンバス：画面全体を覆う */
+        #canvas {
+            width: 100%; height: 100%;
+            position: absolute; top: 0; left: 0; z-index: 10;
+        }
+        /* ローディング画面 */
+        #loading {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #222; color: white;
+            display: flex; justify-content: center; align-items: center;
+            z-index: 999; font-size: 1.2rem; font-family: sans-serif;
+            text-align: center; padding: 20px;
+        }
+        /* カメラ映像用コンテナ（背面に配置） */
+        #camera-container {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1; display: none;
+        }
+        #camera-video {
+            width: 100%; height: 100%; object-fit: cover;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading">Kivyアプリを起動中...</div>
+    
+    <div id="camera-container">
+        <video id="camera-video" autoplay playsinline muted></video>
+    </div>
+
+    <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+
+    <script src="web_bridge.js"></script>
+
+    <script>
+        // Kivyの背景を透明にする関数（カメラ使用時用）
+        function makeKivyTransparent() {
+            const canvas = document.getElementById('canvas');
+            if (canvas) canvas.style.opacity = "0.5";
+        }
+
+        async function main() {
             const loadingText = document.getElementById('loading');
 
             try {
                 // 1. Pyodideのロード
                 let pyodide = await loadPyodide();
                 
-                // 2. パッケージの準備
+                // 2. パッケージ管理ツール(micropip)の準備
                 await pyodide.loadPackage(["micropip"]);
                 const micropip = pyodide.pyimport("micropip");
                 
-                loadingText.innerText = "依存ライブラリをインストール中...";
-                // ここでrequestsをインストールするように指定します
+                // 3. 依存ライブラリのインストール
+                loadingText.innerText = "依存ライブラリ (requestsなど) をインストール中...\n(初回は数十秒かかります)";
                 await micropip.install("requests"); 
+                await micropip.install("kivy"); 
 
                 loadingText.innerText = "ファイルを読み込み中...";
 
-                // 3. ファイルを仮想環境内に取り込む
+                // 4. サーバー上のPythonファイルとKVファイルを仮想環境内に取り込む
                 const filesToLoad = ['main.py', 'main.kv'];
                 for (const file of filesToLoad) {
-                    const response = await fetch(file);
-                    if (!response.ok) throw new Error(`${file} が見つかりません`);
+                    const response = await fetch(file + '?t=' + new Date().getTime()); // キャッシュ回避
+                    if (!response.ok) throw new Error(`${file} が見つかりません。アップロードされているか確認してください。`);
                     const content = await response.text();
                     pyodide.FS.writeFile(file, content);
                 }
 
+                // フォント用ディレクトリの作成と配置（任意）
+                try {
+                    pyodide.FS.mkdir('fonts');
+                    const fontRes = await fetch('fonts/UDEVGothicHS-Regular.ttf');
+                    if (fontRes.ok) {
+                        const fontData = await fontRes.arrayBuffer();
+                        pyodide.FS.writeFile('fonts/UDEVGothicHS-Regular.ttf', new Uint8Array(fontData));
+                    }
+                } catch (e) {
+                    console.log("Font directory or file setup skipped:", e);
+                }
+
                 loadingText.innerText = "アプリを開始します...";
 
-                // 4. アプリ実行
+                // 5. アプリ実行
                 const mainCode = pyodide.FS.readFile('main.py', { encoding: 'utf8' });
                 await pyodide.runPythonAsync(mainCode);
 
+                // 起動成功したらローディング画面を非表示にする
                 loadingText.style.display = 'none';
 
             } catch (err) {
                 console.error(err);
-                loadingText.innerText = "エラー: " + err.message;
+                loadingText.innerText = "エラーが発生しました:\n" + err.message;
             }
         }
+
+        // 実行開始
+        main();
+    </script>
+</body>
+</html>
