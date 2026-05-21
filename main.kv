@@ -1,0 +1,1127 @@
+#:kivy 2.3.1
+<Label>:
+    font_name: "UD"
+<Button>:
+    font_name: "UD"
+    color: (0.2, 0.6, 0.4, 1)  # 緑色の文字
+    background_normal: '' # デフォルトの画像を無効化
+    background_color: 0, 0, 0, 0 # 背景色はcanvasで塗るので透明にする
+    canvas.before:
+        Color:
+            # background_color の代わりにここでお好みの色を指定
+            rgba: (1, 1, 1, 1) if self.state == 'normal' else (0.9, 0.9, 0.9, 1)
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(20),] # ボタンの角を丸くする
+
+<IconTextButton@Button>:
+    text_text: ""
+    icon_source: ""
+    # ボタン自体の設定
+    size_hint: (None, None)
+    width: dp(200)
+    height: dp(45)
+
+    # --- テキストを中央に寄せるための設定 ---
+    text: self.text_text
+    halign: 'center'    # 左右中央
+    valign: 'middle'    # 上下中央
+    text_size: self.size # これを指定しないと halign/valign が効きません
+
+    canvas.before:
+        Color:
+            rgba: (0.2, 0.6, 0.4, 1) if self.state == 'normal' else (0.15, 0.5, 0.3, 1)
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(22.5),] # 角丸
+
+    # アイコンとテキストの並びを制御したい場合（BoxLayoutを重ねている場合）
+    BoxLayout:
+        size: root.size
+        pos: root.pos
+        orientation: 'horizontal'
+        padding: [dp(15), 0, dp(15), 0]
+        spacing: dp(10)
+
+        # アイコンを左側に配置しつつ、全体を中央に見せたい場合
+        Widget: # 左側のスペーサー
+            size_hint_x: 0.1
+
+        Image:
+            source: root.icon_source
+            size_hint: (None, None)
+            size: (dp(20), dp(20))
+            pos_hint: {'center_y': 0.5}
+
+        Label:
+            text: root.text_text
+            font_name: "UD"
+            font_size: sp(16)
+            bold: True
+            color: 1, 1, 1, 1
+            halign: 'left'   # アイコンの隣なのでテキスト自体は左寄せ
+            valign: 'middle'
+            text_size: self.size
+
+        Widget: # 右側のスペーサー
+            size_hint_x: 0.1
+
+# スキャンボタン、お問い合わせボタン（りれき）
+
+<RoundButton>:
+    # プロパティを定義（これがないと外からの指定を受け取れません）
+    icon_source: ""
+    text_text: ""
+
+    size_hint: None, None
+    size: dp(70), dp(70)
+    orientation: 'vertical'
+    # ↓ 文字がない時は padding を調整して中央に寄せる
+    padding: [0, dp(6), 0, dp(6)] if self.text_text == "" else [0, dp(12), 0, dp(12)]
+    spacing: dp(1)
+
+    canvas.before:
+        Color:
+            rgba: (0.2, 0.6, 0.4, 1) if self.state == 'normal' else (0.15, 0.5, 0.3, 1)
+        Ellipse:
+            pos: self.pos
+            size: self.size
+
+    # ボタンの中身
+    Image:
+        # ↓ ここを修正！ 外からの icon_source を反映させる
+        source: root.icon_source
+        keep_ratio: True
+        # ↓ 文字がない時は Image がボタン一杯に広がるように size_hint を調整
+        size_hint: (1, 1) if root.text_text == "" else (1, None)
+        height: dp(28)
+        # もし画像が真っ白になるなら color を明示
+        color: 1, 1, 1, 1
+
+    # 文字がある時だけ Label を表示（高さを0にする）
+    Label:
+        text: root.text_text
+        font_name: "UD"
+        font_size: sp(12) if root.text_text != "" else 0
+        bold: True
+        size_hint_y: None
+        height: dp(14) if root.text_text != "" else 0
+        opacity: 1 if root.text_text != "" else 0
+
+# ゴミ箱ボタンのデザイン定義
+<TrashButton>:
+    source: 'data/images/icon/trash_wh.png'
+    size_hint: (None, None)
+    size: (dp(24), dp(24)) # アイコンのサイズ
+    pos_hint: {'center_y': 0.5} # 上下中央に配置
+    # 押した時の不透明度（視覚フィードバック）
+    opacity: 1.0 if self.state == 'normal' else 0.5
+
+# Backボタンのデザイン定義
+<BackButton>:
+    source: 'data/images/icon/back_wh.png'
+    size_hint: (None, None)
+    size: (dp(24), dp(24)) # アイコンのサイズ
+    pos_hint: {'center_y': 0.5} # 上下中央に配置
+    # 押した時の不透明度（視覚フィードバック）
+    opacity: 1.0 if self.state == 'normal' else 0.5
+
+<NavButton>:
+    # app.current_screen が変わるたびに、True か False が自動で入る
+    is_active: app.current_screen == self.target_screen
+    orientation: 'vertical'
+    # paddingを小さくして、中身のサイズを自由に制御できるようにする
+    padding: [0, dp(5), 0, dp(5)]
+    spacing: dp(2)
+
+    Image:
+        source: root.icon_source
+        keep_ratio: True
+        # size_hintをNoneにして、高さをdpで直接指定する（これが確実です）
+        size_hint: (1, None)
+        height: dp(28) # ★ここでサイズを固定
+        opacity: 1.0 if root.is_active else 0.5
+        pos_hint: {'center_x': 0.5}
+
+    Label:
+        text: root.nav_text
+        size_hint_y: None
+        height: dp(14)
+        font_size: sp(12)
+        color: (1, 1, 1, 1) if root.is_active else (0.6, 0.6, 0.6, 1)
+        bold: True if root.is_active else False
+        halign: 'center'
+
+<BottomMenuBar@BoxLayout>:
+    size_hint_y: None
+    height: dp(85)          # 余白を含めた全体の高さ
+    padding: [dp(10), 0, dp(10), dp(15)] # [左, 上, 右, 下] の余白
+    anchor_x: 'center'
+    anchor_y: 'bottom'
+
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint: (1, None)
+        height: dp(55)      # メニューバー本体の高さ
+
+        canvas.before:
+            Color:
+                rgba: 0.15, 0.15, 0.15, 1  # バーの背景色
+            RoundedRectangle:
+                pos: self.pos
+                size: self.size
+                radius: [dp(25),]          # バーの角丸具合
+
+        # 1. TOP
+        NavButton:
+            icon_source: 'data/images/icon/home.png'
+            nav_text: "TOP"
+            target_screen: 'main'
+            on_release: app.root.current = 'main'
+
+        # 2. リスト
+        NavButton:
+            icon_source: 'data/images/icon/list.png'
+            nav_text: app.get_text('list', app.lang)
+            target_screen: 'itemtype_widget'
+            on_release: app.root.current = 'itemtype_widget'
+
+        # 3. スキャン専用ユニット
+        AnchorLayout:
+            size_hint_x: 1.3
+            anchor_y: 'top'
+            padding: [0, dp(-10), 0, 0]
+
+            RoundButton: # 正しくクラス名を指定
+                icon_source: 'data/images/icon/scan.png'
+                text_text: app.get_text('scan', app.lang)
+                on_release: app.root.current = 'scan_widget'
+                size_hint: None, None
+                size: dp(70), dp(70)
+
+        # 4. 履歴
+        NavButton:
+            icon_source: 'data/images/icon/history.png'
+            nav_text: app.get_text('history_title', app.lang)
+            target_screen: 'history_widget'
+            on_release: app.root.current = 'history_widget'
+
+        # 5. 設定
+        NavButton:
+            icon_source: 'data/images/icon/set.png'
+            nav_text: app.get_text('setting', app.lang)
+            target_screen: 'settings_widget'
+            on_release: app.root.current = 'settings_widget'
+
+<LanguageSelectWidget>:
+    canvas.before:
+        Color:
+            rgba: 0.2, 0.6, 0.4, 1 # ブランドカラーの緑
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+    BoxLayout:
+        orientation: 'vertical'
+        padding: dp(40)
+        spacing: dp(30)
+
+        Label:
+            text: "Select Language / 言語選択"
+            font_size: sp(24)
+            bold: True
+            size_hint_y: None
+            height: dp(100)
+
+        # 日本語ボタン
+        Button:
+            text: "日本語"
+            size_hint_y: None
+            height: dp(60)
+            on_release: root.set_language('jp')
+
+        # 英語ボタン
+        Button:
+            text: "English"
+            size_hint_y: None
+            height: dp(60)
+            on_release: root.set_language('en')
+
+        Widget: # 下部の余白
+            size_hint_y: 1
+
+
+<LoadingWidget>:
+    # 重ね合わせのために FloatLayout を使用
+    FloatLayout:
+        size: root.size
+        pos: root.pos
+
+        # 1. 背景画像（既存：画面遷移時に動く）
+        Image:
+            id: loading_logo
+            source: 'data/images/back.png'
+            size_hint: (1, 1)
+            pos_hint: {'center_x': 0.5, 'center_y': 0.5}
+            fit_mode: "cover"
+            rotate: 0
+            scale: 1.0
+            opacity: 1.0 # 念のため初期値を明示
+
+            canvas.before:
+                PushMatrix
+                Rotate:
+                    angle: self.rotate
+                    origin: self.center
+                Scale:
+                    x: self.scale
+                    y: self.scale
+                    origin: self.center
+            canvas.after:
+                PopMatrix
+
+        # ★追加：中央のロゴ画像 (icon.png)
+        Image:
+            id: central_logo
+            source: 'data/images/icon/icon.png' # パスは適宜調整してください
+            size_hint: (None, None)
+            # ベースのサイズ（鼓動アニメーションでこれが拡大縮小される）
+            size: (dp(120), dp(120))
+            pos_hint: {'center_x': 0.5, 'center_y': 0.5}
+            opacity: 1.0
+
+            canvas.before:
+                PushMatrix
+                # A. Python側プロパティ (root.logo_angle) でゆっくり回転
+                Rotate:
+                    angle: root.logo_angle
+                    origin: self.center
+                # B. Python側プロパティ (root.logo_scale) で拡大縮小（鼓動）
+                Scale:
+                    x: root.logo_scale
+                    y: root.logo_scale
+                    origin: self.center
+            canvas.after:
+                PopMatrix
+
+
+        BoxLayout:
+            id: bottom_box
+            orientation: 'vertical'
+            padding: dp(20)
+            spacing: dp(10)        # 中身（Labelとグルグル）の間隔
+            size_hint_y: None
+            height: dp(100)        # ボックス自体の高さを低く固定する
+            # y の値（0.15など）を大きくすると上に上がり、小さくすると下に下がります
+            pos_hint: {'center_x': 0.5, 'y': 0.15}
+
+            Label:
+                text: "Loading..."
+                font_name: "UD"
+                color: 0.2, 0.2, 0.2, 1
+                size_hint_y: None
+                height: dp(30)
+
+            # --- 下部グルグルアニメーション部分 ---
+            Widget:
+                size_hint: (None, None)
+                size: (dp(30), dp(30)) # 少し小さく
+                pos_hint: {'center_x': 0.5}
+                canvas:
+                    PushMatrix:
+                    Rotate:
+                        angle: root.angle
+                        origin: self.center
+                    Color:
+                        rgba: 0.2, 0.6, 0.4, 0.2 # ブランドカラー（緑）の薄い円
+                    Line:
+                        circle: (self.center_x, self.center_y, dp(12))
+                        width: dp(2)
+                    Color:
+                        rgba: 0.2, 0.6, 0.4, 1 # ブランドカラー（緑）の回転する濃い円弧
+                    Line:
+                        ellipse: (self.center_x - dp(12), self.center_y - dp(12), dp(24), dp(24), 0, 90)
+                        width: dp(3)
+                        cap: 'round'
+                    PopMatrix:
+
+
+<ScanWidget>:
+    # 画面から離れたら、このクラスの on_leave メソッドを実行せよという指示
+    on_leave: self.on_leave()
+
+    FloatLayout:
+        # 1. 背景
+        Widget:
+            size_hint: (1, 1)
+
+        # 2. スキャン範囲の枠
+        Widget:
+            id: scan_box
+            size_hint: (None, None)
+            size: (dp(250) * root.border_scale, dp(250) * root.border_scale)
+            pos_hint: {'center_x': 0.5, 'center_y': 0.5}
+
+            canvas.after:
+                Color:
+                    rgba: 0, 1, 0, root.border_opacity  # 緑色、アニメーションで透明度が変わる
+
+                # --- 左上 ---
+                Line:
+                    width: 2
+                    points: [self.x, self.top - dp(40), self.x, self.top, self.x + dp(40), self.top]
+
+                # --- 右上 ---
+                Line:
+                    width: 2
+                    points: [self.right - dp(40), self.top, self.right, self.top, self.right, self.top - dp(40)]
+
+                # --- 左下 ---
+                Line:
+                    width: 2
+                    points: [self.x, self.y + dp(40), self.x, self.y, self.x + dp(40), self.y]
+
+                # --- 右下 ---
+                Line:
+                    width: 2
+                    points: [self.right - dp(40), self.y, self.right, self.y, self.right, self.y + dp(40)]
+
+        # 3. 結果表示ラベル
+        Label:
+            id: result_name
+            text: app.get_text('search_placeholder', app.lang)
+            size_hint_y: None
+            height: dp(50)
+            # 位置を少し上に調整 (y: 0.2 -> 0.28)
+            pos_hint: {'center_x': 0.5, 'y': 0.75}
+            font_name: "UD"
+
+# 2つのボタンをまとめるコンテナ
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint: None, None
+            size: self.minimum_width, dp(60) # 中身の幅に合わせる
+            pos_hint: {'center_x': .5, 'y': .15} # コンテナ自体を画面中央に
+            spacing: dp(20) # ボタン同士の間隔
+
+            RoundButton:
+                size_hint: None, None #size_hintをNoneにして、高さをdpで直接指定する（これが確実です）
+                size: dp(60), dp(60)
+                text_text: ""
+                icon_source: 'data/images/icon/image_br.png'
+                pos_hint: {'center_x': .5, 'y': .15}
+                # [左, 上, 右, 下]
+                padding: [dp(12), dp(12), dp(12), dp(12)]
+                on_release: app.open_album()
+                # --- ここで強引に背景を塗りつぶす ---
+                canvas.before:
+                    Color:
+                        rgba: 1, 1, 1, 1
+                    Ellipse:
+                        pos: self.pos
+                        size: self.size
+                # ----------------------------------
+
+            RoundButton:
+                size_hint: None, None #size_hintをNoneにして、高さをdpで直接指定する（これが確実です）
+                size: dp(60), dp(60)
+                text_text: ""
+                icon_source: 'data/images/icon/light_br.png'
+                pos_hint: {'center_x': .7, 'y': .15}
+                on_release: app.toggle_flashlight()
+                # --- ここで強引に背景を塗りつぶす ---
+                canvas.before:
+                    Color:
+                        # 点灯中(True)なら明るいグレー、消灯なら墨色
+                        rgba: (1, 1, 0.8, 1) if app.flashlight_status else (1, 1, 1, 1)
+                    Ellipse:
+                        pos: self.pos
+                        size: self.size
+                # ----------------------------------
+
+        # メニューバー
+        BottomMenuBar:
+
+# スキャン結果表示ポップアップ
+<ScanResultPopup@ModalView>:
+    opinion_url: ""
+    is_warning: False
+    caller: None
+
+    on_dismiss: if root.caller: root.caller.re_scan()
+
+    size_hint: (0.85, 0.8)
+    background_color: 0, 0, 0, 0
+    auto_dismiss: True
+
+    BoxLayout:
+        orientation: 'vertical'
+        padding: [dp(10), dp(35), dp(10), dp(35)]
+        spacing: dp(20)
+
+        Label:
+            id: p_usage
+            size_hint_y: None
+            height: dp(60)
+            font_name: "UD"
+            font_size: sp(26)
+            bold: True
+            color: (1, 0.3, 0.3, 1) if root.is_warning else (0.4, 1, 0.4, 1)
+            halign: 'center'
+            valign: 'bottom'
+
+        BoxLayout:
+            orientation: 'vertical'
+            size_hint: (0.9, 0.6)
+            pos_hint: {'center_x': 0.5}
+            padding: dp(20)
+            spacing: dp(15)
+            canvas.before:
+                Color:
+                    rgba: (1, 0.9, 0, 1) if root.is_warning else (1, 1, 1, 1)
+                RoundedRectangle:
+                    pos: self.pos
+                    size: self.size
+                    radius: [dp(25),]
+
+            AsyncImage:
+                id: p_image
+                size_hint_y: 0.5
+                fit_mode: "contain"
+
+            BoxLayout:
+                orientation: 'vertical'
+                size_hint_y: 0.3
+                spacing: dp(5)
+
+                Label:
+                    id: p_name
+                    text: app.get_text("product_name", app.lang)
+                    font_name: "UD"
+                    font_size: sp(18)
+                    bold: True
+                    color: 0.1, 0.1, 0.1, 1
+                    halign: 'center'
+                    text_size: self.width, None
+
+                Label:
+                    id: p_company
+                    text: app.get_text("company_name", app.lang)
+                    font_name: "UD"
+                    font_size: sp(14)
+                    color: 0.4, 0.4, 0.4, 1
+                    halign: 'center'
+                    text_size: self.width, None
+
+            # --- テキストとアイコンの横並びエリア ---
+            BoxLayout:
+                orientation: 'horizontal'
+                size_hint: (None, None)
+                height: dp(50)  # エリア全体の高さ
+                # コンテナ自体の幅を中身に合わせる（中央寄せ用）
+                width: self.minimum_width
+                pos_hint: {'center_x': 0.5}
+                spacing: dp(10) # テキストとアイコンの間隔
+
+                # --- テキストとアイコンが一体化した一つのボタン ---
+                IconTextButton:
+                    text_text: app.get_text("send_opinion_label", app.lang)
+                    icon_source: 'data/images/icon/mail_wh.png'
+                    pos_hint: {'center_x': 0.5}
+                    on_release:
+                        app.open_url_ios(root.opinion_url)
+
+            # 閉じるボタン
+            Button:
+                text: app.get_text("close", app.lang)
+                font_name: "UD"
+                size_hint: (0.6, None)
+                height: dp(45)
+                pos_hint: {'center_x': 0.5}
+                background_normal: ''
+                on_release: root.dismiss()
+
+
+<MainWidget>:
+    Image:
+        source: 'data/images/top.png'
+        size_hint: (1, 1)
+        # 'cover' を指定すると、比率を保ったまま隙間なく埋めます（端は切れます）
+        # 'fill' だと比率を無視して無理やり全画面に合わせます
+        fit_mode: "cover"
+
+    BoxLayout:
+        orientation: 'vertical'
+
+        # --- スクロール可能なエリア ---
+        ScrollView:
+            do_scroll_x: False
+            BoxLayout:
+                orientation: 'vertical'
+                size_hint_y: None
+                height: self.minimum_height  # ★中身の合計の高さにする
+                padding: dp(20)
+                spacing: dp(15)      # ★パーツごとの隙間
+
+                # 1. お知らせコーナー
+                BoxLayout:
+                    size_hint_y: None
+                    height: dp(80)   # 内容に合わせて調整
+                    padding: dp(10)
+
+                    canvas.before:
+                        Color:
+                            # rgba: (赤, 緑, 青, 透明度)
+                            # 透明度は 0.0(透明) 〜 1.0(不透明) で指定します
+                            rgba: 1, 1, 1, 0.5  # 白色の50%半透明
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [dp(15),]  # 角丸の具合
+
+                    # --- 枠の中身（例：テキストなど） ---
+                    Label:
+                        text: "【重要】新機能が追加されました！"
+                        color: 0.2, 0.2, 0.2, 1
+                        font_name: "UD"
+                        font_size: sp(14)
+                        halign: 'left'
+                        valign: 'middle'
+                        text_size: self.size
+
+                # リンクボタン
+                Button:
+                    text: "ボイコット商品情報をお寄せください"  # ボタンに表示するテキスト
+                    size_hint_y: None
+                    height: dp(55)
+                    # 押した時の動作：指定のURLを引数に渡して実行
+                    on_release:
+                        app.open_url_ios("https://social-action.xyz/boycott_form/")
+
+                # 3. メインの入力エリアなど
+                BoxLayout:
+                    size_hint_y: None
+                    height: dp(200)  # ★十分な高さを確保
+                    text: "にゅうりょくえりあ"
+
+                # 4. 下に余白を作るためのスペーサー
+                Widget:
+                    size_hint_y: None
+                    height: dp(80)
+
+        # --- 固定のボトムメニュー ---
+        BottomMenuBar:
+
+# カテゴリーボタンのデザイン
+<ItemTypeButton>:
+    orientation: 'vertical'
+    padding: dp(15)
+    spacing: dp(10)
+    size_hint_y: None
+    height: dp(160)
+    canvas.before:
+        Color:
+            rgba: 1, 1, 1, 1  # 白いカード
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(20),]
+
+    # 影のような効果（必要に応じて）
+    canvas.after:
+        Color:
+            rgba: 0, 0, 0, 0.05
+        Line:
+            rounded_rectangle: (self.x, self.y, self.width, self.height, dp(20))
+            width: dp(1)
+
+    Image:
+        source: root.icon_source
+        size_hint_y: 0.7
+        fit_mode: "contain"
+
+    Label:
+        text: root.itemtype_text
+        font_name: "UD"
+        size_hint_y: 0.3
+        color: 0.3, 0.3, 0.3, 1
+        font_size: sp(15)
+        bold: True
+
+<ItemTypeWidget>:
+    Image:
+        id: itemtype_back
+        source: 'data/images/back.png'
+        size_hint: (1, 1)
+        # 'cover' を指定すると、比率を保ったまま隙間なく埋めます（端は切れます）
+        # 'fill' だと比率を無視して無理やり全画面に合わせます
+        fit_mode: "cover"
+        # 初期値
+        rotate: 0
+        scale: 1.0
+
+    BoxLayout:
+        orientation: 'vertical'
+        # ヘッダー部分
+        Label:
+            text: app.get_text('choice_item', app.lang)
+            font_name: "UD"
+            size_hint_y: None
+            height: dp(80)
+            font_size: sp(22)
+            color: 0.2, 0.2, 0.2, 1
+            bold: True
+
+        ScrollView:
+            GridLayout:
+                cols: 2           # 2列表示
+                spacing: dp(20)   # ボタン間の隙間
+                padding: dp(20)   # 画面端からの余白
+                size_hint_y: None
+                height: self.minimum_height
+
+                ItemTypeButton:
+                    icon_source: 'data/images/lemon.png'
+                    itemtype_text: app.get_text('lemon', app.lang)
+                    on_release: root.select_item("ITEM_LEMON")
+
+                ItemTypeButton:
+                    icon_source: 'data/images/orange.png'
+                    itemtype_text: app.get_text('orange', app.lang)
+                    on_release: root.select_item("ITEM_ORANGE")
+
+                ItemTypeButton:
+                    icon_source: 'data/images/grapefruit.png'
+                    itemtype_text: app.get_text('grapefruit', app.lang)
+                    on_release: root.select_item("ITEM_GRAPEFRUIT")
+
+                ItemTypeButton:
+                    icon_source: 'data/images/zakuro.png'
+                    itemtype_text: app.get_text('zakuro', app.lang)
+                    on_release: root.select_item("ITEM_ZAKURO")
+
+    BottomMenuBar:
+
+#ボイコットリスト
+<ListWidget>:
+    Image:
+        id: List_back
+        source: 'data/images/back.png'
+        size_hint: (1, 1)
+        # 'cover' を指定すると、比率を保ったまま隙間なく埋めます（端は切れます）
+        # 'fill' だと比率を無視して無理やり全画面に合わせます
+        fit_mode: "cover"
+        # 初期値
+        rotate: 0
+        scale: 1.0
+
+    BoxLayout:
+        orientation: 'vertical'
+
+        # ヘッダー部分
+        BoxLayout:
+            size_hint_y: None
+            height: dp(60)
+            padding: [dp(15), 0, dp(15), 0] # 左右に余白を追加
+            canvas.before:
+                Color:
+                    rgba: 0.2, 0.6, 0.4, 1 # 緑色のヘッダー
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+
+            Widget:
+                size_hint_x: None
+                width: dp(24)
+
+            # タイトル（左寄せにするため、スペーサーを削除して halign を変更）
+            Label:
+                text: app.get_item_name(root.current_item) + app.get_text('list', app.lang)
+                font_name: "UD"
+                font_size: sp(20)
+                color: 1, 1, 1, 1
+                bold: True
+                halign: 'center'   # 中央寄せ
+                valign: 'middle'
+                text_size: self.size
+
+            # backボタンを配置
+            BackButton:
+                on_release: root.on_press_back() # 戻るボタン
+
+
+        RecycleView:
+            id: rv_list
+            viewclass: 'HistoryItem'
+            RecycleBoxLayout:
+                default_size: None, dp(100)
+                default_size_hint: 1, None
+                size_hint_y: None
+                height: self.minimum_height
+                orientation: 'vertical'
+                spacing: dp(5) # 少し隙間を広げると見やすくなります
+                padding: dp(5)
+
+    BottomMenuBar:
+
+# 履歴1件分のデザイン
+<HistoryItem>:
+    orientation: 'horizontal'
+    padding: dp(10)
+    spacing: dp(15)
+    size_hint_y: None
+    height: dp(110) # ボタンを大きくしたので全体の高さを少し調整
+
+    # 背景のデザイン（白いカード風）
+    canvas.before:
+        Color:
+            rgba: 1, 1, 1, 1
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(15),]
+
+    # 1. 左側：商品画像
+    AsyncImage:
+        source: root.image_path if root.image_path else 'data/images/no_image.png'
+        size_hint_x: None
+        width: dp(80)
+        fit_mode: "contain"
+
+    # 2. 中央：テキスト情報（ここに日時を移動）
+    BoxLayout:
+        orientation: 'vertical'
+        spacing: dp(2)
+
+        # ★追加：商品名の上に日時を表示
+        Label:
+            text: root.scan_time
+            font_size: sp(10)
+            color: 0.6, 0.6, 0.6, 1
+            size_hint_y: None
+            height: dp(15)
+            text_size: self.width, None
+            halign: 'left'
+
+        Label:
+            text: root.product_name
+            font_size: sp(14)
+            bold: True
+            color: 0.1, 0.1, 0.1, 1
+            text_size: self.width, None
+            shorten: True
+            shorten_from: 'right'
+
+        Label:
+            text: root.company_name
+            font_size: sp(10)
+            color: 0.4, 0.4, 0.4, 1
+            text_size: self.width, None
+
+        Label:
+            text: root.item_usage
+            font_size: sp(12)
+            color: (1, 0.3, 0.3, 1) if "⚠️" in self.text else (0.2, 0.6, 0.4, 1)
+            text_size: self.width, None
+
+    # 3. 右側：ボタンエリア（日時ラベルを消してボタンだけに）
+    AnchorLayout:
+        size_hint_x: None
+        width: dp(70)
+        anchor_x: 'center'
+        anchor_y: 'center'
+
+        RoundButton:
+            size_hint: None, None #size_hintをNoneにして、高さをdpで直接指定する（これが確実です）
+            size: dp(50), dp(50)
+            bg_color: 0.2, 0.6, 0.4, 1
+            icon_source: 'data/images/icon/mail_wh.png'
+            text_text: ""
+            on_release:
+                app.open_url_ios(root.opinion_url)
+
+# 履歴画面全体
+<HistoryWidget>:
+    Image:
+        id: History_back
+        source: 'data/images/back.png'
+        size_hint: (1, 1)
+        # 'cover' を指定すると、比率を保ったまま隙間なく埋めます（端は切れます）
+        # 'fill' だと比率を無視して無理やり全画面に合わせます
+        fit_mode: "cover"
+        # 初期値
+        rotate: 0
+        scale: 1.0
+
+    BoxLayout:
+        orientation: 'vertical'
+
+        # ヘッダー部分
+        BoxLayout:
+            size_hint_y: None
+            height: dp(60)
+            padding: [dp(15), 0, dp(15), 0] # 左右に余白を追加
+            canvas.before:
+                Color:
+                    rgba: 0.15, 0.25, 0.4, 1 # 紺色のヘッダー
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+
+            Widget:
+                size_hint_x: None
+                width: dp(24)
+
+            # タイトル（左寄せにするため、スペーサーを削除して halign を変更）
+            Label:
+                text: app.get_text('history_title', app.lang)
+                font_name: "UD"
+                font_size: sp(20)
+                color: 1, 1, 1, 1
+                bold: True
+                halign: 'center'   # 中央寄せ
+                valign: 'middle'
+                text_size: self.size
+
+            # ★テキストボタンを削除し、ゴミ箱ボタンを配置
+            TrashButton:
+                on_release: root.show_confirm_popup() # 確認ダイアログを開く
+
+        # 履歴リスト (RecycleView)
+        RecycleView:
+            id: rv
+            viewclass: 'HistoryItem' # 使うウィジェット名
+            RecycleBoxLayout:
+                default_size: None, dp(100)
+                default_size_hint: 1, None
+                size_hint_y: None
+                height: self.minimum_height
+                orientation: 'vertical'
+                spacing: dp(5)
+                padding: dp(5)
+
+        BottomMenuBar:
+
+# 削除確認ダイアログ
+<ClearConfirmPopup@ModalView>:
+    size_hint: (0.7, 0.3)
+    background_color: 0, 0, 0, 0
+    auto_dismiss: True
+
+    BoxLayout:
+        orientation: 'vertical'
+        padding: dp(20)
+        spacing: dp(20)
+        canvas.before:
+            Color:
+                rgba: 1, 1, 1, 1
+            RoundedRectangle:
+                pos: self.pos
+                size: self.size
+                radius: [dp(20),]
+
+        Label:
+            text: app.get_text('delete_confirm', app.lang)
+            font_name: "UD"
+            color: 0.1, 0.1, 0.1, 1
+            font_size: sp(16)
+            halign: 'center'
+
+        BoxLayout:
+            orientation: 'horizontal'
+            spacing: dp(10)
+            size_hint_y: None
+            height: dp(45)
+
+            Button:
+                text: app.get_text('cancel', app.lang)
+                font_name: "UD"
+                color: 1, 1, 1, 1
+                on_release: root.dismiss()
+                canvas.before:
+                    Color:
+                        # 背景色を濃いグレー（暗めの灰色）に設定
+                        rgba: 0.3, 0.3, 0.3, 1
+                    RoundedRectangle:
+                        pos: self.pos
+                        size: self.size
+                        radius: [dp(10),]
+
+            Button:
+                text: app.get_text('delete', app.lang)
+                font_name: "UD"
+                bold: True
+                color: 1, 1, 1, 1
+                canvas.before:
+                    Color:
+                        rgba: (0.8, 0.2, 0.2, 1) # 警告色（赤）
+                    RoundedRectangle:
+                        pos: self.pos
+                        size: self.size
+                        radius: [dp(10),]
+                on_release:
+                    root.history_widget.clear_history()
+                    root.dismiss()
+
+<SettingsWidget>:
+    Image:
+        source: 'data/images/sozai/back_br.png'
+        size_hint: (1, 1)
+        # 'cover' を指定すると、比率を保ったまま隙間なく埋めます（端は切れます）
+        # 'fill' だと比率を無視して無理やり全画面に合わせます
+        fit_mode: "cover"
+
+        canvas.before:
+            Color:
+                rgba: 0.96, 0.97, 0.98, 1  # 爽やかな薄いグレーの背景
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+    BoxLayout:
+        orientation: 'vertical'
+
+        # --- ヘッダー ---
+        BoxLayout:
+            size_hint_y: None
+            height: dp(65)
+            # 左右の padding を 0 にして、ラベルが画面端まで使えるようにします
+            padding: [0, 0]
+            canvas.before:
+                Color:
+                    rgba: 0.2, 0.6, 0.4, 1
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+
+            Label:
+                text: app.get_text('settings_title', app.lang)
+                font_name: "UD"
+                bold: True
+                font_size: sp(20)
+                color: 1, 1, 1, 1
+                # 文字をラベルの領域内で中央寄せにする設定
+                halign: 'center'
+                valign: 'middle'
+                text_size: self.size # ラベルのサイズ（親のBoxLayoutいっぱい）をテキスト描画範囲にする
+
+        # --- コンテンツエリア ---
+        ScrollView:
+            do_scroll_x: False
+            BoxLayout:
+                orientation: 'vertical'
+                size_hint_y: None
+                height: self.minimum_height
+                padding: dp(20)
+                spacing: dp(20)
+
+                # --- 言語設定カード ---
+                BoxLayout:
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: dp(150)
+                    padding: dp(20)
+                    spacing: dp(10)
+                    canvas.before:
+                        Color:
+                            rgba: 1, 1, 1, 1 # 白色のカード
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [dp(15)]
+
+                    # 上段：見出しとアイコン
+                    BoxLayout:
+                        size_hint_y: None
+                        height: dp(30)
+                        spacing: dp(10)
+                        Image:
+                            source: 'data/images/icon/home.png' # 適宜、地球儀などのアイコンに変更してください
+                            size_hint: None, None
+                            size: dp(22), dp(22)
+                            pos_hint: {'center_y': 0.5}
+                        Label:
+                            text: app.get_text('lang_setting_label', app.lang)
+                            font_name: "UD"
+                            bold: True
+                            font_size: sp(17)
+                            color: 0.15, 0.15, 0.15, 1
+                            halign: 'left'
+                            text_size: self.size
+
+                    # 中段：やさしいにほんご説明
+                    Label:
+                        text: "つかう ことばを えらびます"
+                        font_name: "UD"
+                        font_size: sp(12)
+                        color: 0.5, 0.5, 0.5, 1
+                        size_hint_y: None
+                        height: dp(15)
+                        halign: 'left'
+                        text_size: self.size
+
+                    # 下段：スイッチ操作エリア
+                    # --- スイッチ本体の並び（SettingsWidget内） ---
+                    BoxLayout:
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: dp(50)
+                        spacing: dp(15)
+                        pos_hint: {'center_x': 0.5}
+                        width: self.minimum_width
+                        size_hint_x: None
+
+                        Label:
+                            text: "日本語"
+                            font_name: "UD"
+                            font_size: sp(16)
+                            # 選択されている方をブランドカラーの緑、そうでない方を薄いグレーに
+                            color: (0.2, 0.6, 0.4, 1) if app.lang == 'jp' else (0.6, 0.6, 0.6, 1)
+                            size_hint_x: None
+                            width: self.texture_size[0]
+                            bold: True if app.lang == 'jp' else False
+
+                        SwitchButton:
+                            id: lang_switch
+                            size_hint: (None, None)
+                            width: dp(80)
+                            height: dp(40)
+
+                            canvas.before:
+                                # 1. スイッチの土台（背景）
+                                Color:
+                                    # 選択状態に合わせて土台の色を変える（ONなら緑、OFFなら濃いグレーなど）
+                                    # ここでは「言語選択中」として常にブランドカラーか、濃いグレーが見えるようにします
+                                    rgba: (0.2, 0.2, 0.2, 1) # ★ここを白以外（濃いグレー）に指定
+                                RoundedRectangle:
+                                    pos: self.pos
+                                    size: self.size
+                                    radius: [self.height / 2]
+
+                                # 2. 内側のつまみ（白い丸）
+                                Color:
+                                    rgba: 1, 1, 1, 1 # つまみは白
+                                Ellipse:
+                                    pos:
+                                        (self.x + dp(3) + (self.width - self.height) * self.knob_pos_fraction,
+                                        self.y + dp(3))
+                                    size: (self.height - dp(6), self.height - dp(6))
+
+                        Label:
+                            text: "English"
+                            font_name: "UD"
+                            font_size: sp(16)
+                            color: (0.2, 0.6, 0.4, 1) if app.lang == 'en' else (0.6, 0.6, 0.6, 1)
+                            size_hint_x: None
+                            width: self.texture_size[0]
+                            bold: True if app.lang == 'en' else False
+
+                # --- 今後追加するための予備スペース ---
+                Widget:
+                    size_hint_y: None
+                    height: dp(20)
+
+        # --- 3. 下部メニューバー ---
+        BottomMenuBar:
