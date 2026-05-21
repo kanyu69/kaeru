@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Kaeru App</title>
-    <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js?v=2"></script>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
 
     <style>
@@ -12,6 +12,7 @@
             margin: 0; padding: 0; width: 100%; height: 100%;
             background-color: #000; overflow: hidden;
         }
+        /* Kivyの出力先：公式仕様に合わせた配置 */
         #canvas {
             width: 100%; height: 100%;
             position: absolute; top: 0; left: 0; z-index: 10;
@@ -34,7 +35,7 @@
 </head>
 <body>
 
-    <div id="loading">Kivy Web環境を初期化中...</div>
+    <div id="loading">Kivyグラフィックスを初期化中...</div>
     
     <div id="camera-container">
         <video id="camera-video" autoplay playsinline muted></video>
@@ -54,35 +55,53 @@
             const loadingText = document.getElementById('loading');
 
             try {
-                // 1. Python（Pyodide v0.24.1）環境の起動
+                // 1. Python環境の起動
                 let pyodide = await loadPyodide({
                     indexURL: "https://cdn.jsdelivr.net/pyodide/v0.24.1/full/"
                 });
                 
-                // 2. パッケージマネージャ(micropip)の準備
+                // 2. Kivyのグラフィックス（Window）がブラウザのCanvasを見つけられるようにグローバル登録
+                window.canvas = document.getElementById('canvas');
+                
+                // 【重要】Kivyが内部で要求するブラウザの描画オブジェクト（Module）を擬似的に定義
+                window.Module = {
+                    canvas: window.canvas,
+                    print: console.log,
+                    printErr: console.error
+                };
+
+                // 3. パッケージマネージャの準備
                 await pyodide.loadPackage(["micropip"]);
                 const micropip = pyodide.pyimport("micropip");
                 
-                // 3. 外部ライブラリ（requests）のインストール
-                loadingText.innerText = "依存ライブラリを読込中...\n(初回は30秒ほどかかります)";
+                // 4. 依存ライブラリのインストール
+                loadingText.innerText = "依存ライブラリをロード中...";
                 await micropip.install("requests"); 
 
-                // 4. Pyodide v0.24.1 (Emscripten 3.1.45) に【完全適合】するKivyパッケージ
-                loadingText.innerText = "Kivyエンジンを同期中...";
+                // 5. Kivyエンジンのインポート
+                loadingText.innerText = "Kivyグラフィックスエンジンを同期中...";
                 await micropip.install("https://pyodide-packages.kivy.org/kivy-2.3.0-cp311-cp311-emscripten_3_1_45_wasm32.whl");
+
+                // 6. 仮想ウィンドウ環境（ダミーのAndroid/iOS/Webウインドウマネージャ）をPython側に認識させる
+                pyodide.runPython(`
+import os
+# KivyにWeb環境（X11やAndroid環境がない状態）であることを教える
+os.environ['KIVY_WINDOW'] = 'sdl2'
+os.environ['KIVY_GL_BACKEND'] = 'gl'
+`);
 
                 loadingText.innerText = "アプリケーションファイルを展開中...";
 
-                // 5. サーバー上のメインファイルをPyodideの仮想ファイルシステムへ同期
+                // 7. サーバー上のメインファイルを同期
                 const filesToLoad = ['main.py', 'main.kv'];
                 for (const file of filesToLoad) {
                     const response = await fetch(file + '?t=' + new Date().getTime());
-                    if (!response.ok) throw new Error(`${file} がサーバー上で見つかりません`);
+                    if (!response.ok) throw new Error(`${file} が見つかりません`);
                     const content = await response.text();
                     pyodide.FS.writeFile(file, content);
                 }
 
-                // フォントディレクトリの作成とフォント設置
+                // フォント設置
                 try {
                     pyodide.FS.mkdir('fonts');
                     const fontRes = await fetch('fonts/UDEVGothicHS-Regular.ttf');
@@ -94,60 +113,13 @@
                     console.log("Font setup skipped:", e);
                 }
 
-                loadingText.innerText = "Kivyインタフェースを構築しています...";
+                loadingText.innerText = "画面をレンダリングしています...";
 
-                // 6. アプリ（main.py）を実行
+                // 8. アプリ（main.py）を実行
                 const mainCode = pyodide.FS.readFile('main.py', { encoding: 'utf8' });
                 await pyodide.runPythonAsync(mainCode);
 
-                // 無事に起動したらローディングを解除
-                loadingText.style.display = 'none';
-
-            } catch (err) {
-                console.error(err);
-                loadingText.innerText = "起動エラーが発生しました:\n" + err.message;
-            }
-        }
-
-        main();
-    </script>
-</body>
-</html>                await micropip.install("requests"); 
-
-                // 4. Pyodide v0.25.0 (Python 3.11 / Emscripten 3.1.45) に適合するKivyパッケージ
-                loadingText.innerText = "Kivyエンジンを展開中...";
-                await micropip.install("https://pyodide-packages.kivy.org/kivy-2.3.0-cp311-cp311-emscripten_3_1_45_wasm32.whl");
-
-                loadingText.innerText = "アプリケーションファイルを展開中...";
-
-                // 5. サーバー上のメインファイルをPyodideの仮想ファイルシステムへ同期
-                const filesToLoad = ['main.py', 'main.kv'];
-                for (const file of filesToLoad) {
-                    const response = await fetch(file + '?t=' + new Date().getTime());
-                    if (!response.ok) throw new Error(`${file} がサーバー上で見つかりません`);
-                    const content = await response.text();
-                    pyodide.FS.writeFile(file, content);
-                }
-
-                // フォントディレクトリの作成とフォント設置
-                try {
-                    pyodide.FS.mkdir('fonts');
-                    const fontRes = await fetch('fonts/UDEVGothicHS-Regular.ttf');
-                    if (fontRes.ok) {
-                        const fontData = await fontRes.arrayBuffer();
-                        pyodide.FS.writeFile('fonts/UDEVGothicHS-Regular.ttf', new Uint8Array(fontData));
-                    }
-                } catch (e) {
-                    console.log("Font setup skipped:", e);
-                }
-
-                loadingText.innerText = "Kivyインタフェースを構築しています...";
-
-                // 6. アプリ（main.py）を実行
-                const mainCode = pyodide.FS.readFile('main.py', { encoding: 'utf8' });
-                await pyodide.runPythonAsync(mainCode);
-
-                // 無事に起動したらローディングを解除
+                // 起動完了したら表示
                 loadingText.style.display = 'none';
 
             } catch (err) {
