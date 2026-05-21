@@ -62,6 +62,9 @@
                 
                 // 2. 必要なライブラリの準備（Kivy本体のインストールはスキップ）
                 await pyodide.loadPackage(["micropip"]);
+                loadingText.innerText = "依存ライブラリをインストール中...";
+                // ここでrequestsをインストールするように指定します
+                await micropip.install("requests");
                 
                 loadingText.innerText = "ファイルを読み込み中...";
 
