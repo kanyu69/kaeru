@@ -60,14 +60,13 @@
                 // 1. Pyodideのロード
                 let pyodide = await loadPyodide();
                 
-                // 2. Kivy/Wasmに必要なパッケージの準備
+                // 2. 必要なライブラリの準備（Kivy本体のインストールはスキップ）
                 await pyodide.loadPackage(["micropip"]);
-                const micropip = pyodide.pyimport("micropip");
                 
-                loadingText.innerText = "依存ライブラリをインストール中...";
-                await micropip.install("kivy"); 
+                loadingText.innerText = "ファイルを読み込み中...";
 
-                // 3. サーバー上のPythonファイルとKVファイルを仮想環境内に取り込む
+                // 3. サーバー上のPythonファイルとKVファイルをPyodide内に取り込む
+                // ここで main.py, main.kv をブラウザ内の仮想メモリに配置します
                 const filesToLoad = ['main.py', 'main.kv'];
                 for (const file of filesToLoad) {
                     const response = await fetch(file);
@@ -76,29 +75,20 @@
                     pyodide.FS.writeFile(file, content);
                 }
 
-                // フォントが必要な場合はディレクトリを作成して配置
-                try {
-                    pyodide.FS.mkdir('fonts');
-                    const fontRes = await fetch('fonts/UDEVGothicHS-Regular.ttf');
-                    const fontData = await fontRes.arrayBuffer();
-                    pyodide.FS.writeFile('fonts/UDEVGothicHS-Regular.ttf', new Uint8Array(fontData));
-                } catch (e) {
-                    console.log("Font setup skipped or failed:", e);
-                }
-
+                // 4. Kivy-Wasm環境を初期化してアプリを実行
+                // 本来はここを bidi_kivy_wasm_build が生成した JS が担当しますが、
+                // 手動で実行する場合は以下のように main.py を呼び出します
                 loadingText.innerText = "アプリを開始します...";
-
-                // 4. アプリ実行
-                // main.py の内容をテキストとして取得して実行
+                
                 const mainCode = pyodide.FS.readFile('main.py', { encoding: 'utf8' });
                 await pyodide.runPythonAsync(mainCode);
 
-                // 起動成功したらローディングを消す
                 loadingText.style.display = 'none';
 
             } catch (err) {
                 console.error(err);
-                loadingText.innerText = "エラー: " + err.message;
+                // エラー内容を表示
+                loadingText.innerText = "起動に失敗しました。詳細はコンソールを確認してください。";
             }
         }
 
