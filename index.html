@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Kaeru App</title>
-    <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js?v=1"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
 
     <style>
@@ -54,8 +54,10 @@
             const loadingText = document.getElementById('loading');
 
             try {
-                // 1. Python（Pyodide v0.25.0）環境の起動
-                let pyodide = await loadPyodide();
+                // 1. Python（Pyodide v0.25.0）環境の起動（ここでも古いバージョンを使い回さないよう対策）
+                let pyodide = await loadPyodide({
+                    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.25.0/full/"
+                });
                 
                 // 2. パッケージマネージャ(micropip)の準備
                 await pyodide.loadPackage(["micropip"]);
@@ -65,7 +67,7 @@
                 loadingText.innerText = "依存ライブラリを読込中...\n(初回は30秒ほどかかります)";
                 await micropip.install("requests"); 
 
-                // 4. Pyodide v0.25.0 (Python 3.11 / Emscripten 3.1.45) に100%適合する公式Kivyパッケージ
+                // 4. Pyodide v0.25.0 (Python 3.11 / Emscripten 3.1.45) に適合するKivyパッケージ
                 loadingText.innerText = "Kivyエンジンを展開中...";
                 await micropip.install("https://pyodide-packages.kivy.org/kivy-2.3.0-cp311-cp311-emscripten_3_1_45_wasm32.whl");
 
