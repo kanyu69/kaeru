@@ -161,9 +161,29 @@ os.environ['KIVY_GL_BACKEND'] = 'gl'
 
                 loadingText.innerText = "画面をレンダリングしています...";
 
-                // 10. アプリ（main.py）を実行
-                const mainCode = pyodide.FS.readFile('main.py', { encoding: 'utf8' });
-                await pyodide.runPythonAsync(mainCode);
+                // 10. アプリ（main.py）を実行（エラーを詳細にキャッチする特別版）
+                try {
+                    await pyodide.runPythonAsync(`
+import sys
+import traceback
+
+try:
+    # main.py の中身を実行する
+    with open('main.py', 'r', encoding='utf-8') as f:
+        code = f.read()
+    exec(code, globals())
+except Exception as e:
+    # Python側で起きたエラーの生のスタックトレースを文字列にする
+    error_detail = traceback.format_exc()
+    print("--- PYTHON CRASH LOG ---")
+    print(error_detail)
+    # JavaScript側に例外として詳細を投げる
+    raise RuntimeError(error_detail)
+`);
+                } catch (pythonAsyncErr) {
+                    // pyodide.runPythonAsync 自体が失敗した場合
+                    throw new Error("Python実行中にエラー:\n" + pythonAsyncErr.message);
+                }
 
                 // 起動完了したら非表示
                 loadingText.style.display = 'none';
