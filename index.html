@@ -106,11 +106,23 @@
                     throw new Error("Kivyエンジンのインストール（.whlの展開）に失敗しました。Pyodideとのバージョン互換性がない可能性があります:\n" + kivyErr.message);
                 }
 
-                // 6. 仮想ウィンドウ環境をPython側に認識させる
+               // 6. 仮想ウィンドウ環境の設定と、Webブラウザ用イベントループの強制適用
                 pyodide.runPython(`
 import os
+import sys
+
+# KivyにWeb環境であることを教える
 os.environ['KIVY_WINDOW'] = 'sdl2'
 os.environ['KIVY_GL_BACKEND'] = 'gl'
+
+# 【重要】Pyodide v0.26以降でKivyの非同期クラッシュを防ぐため、
+# 標準の asyncio ループを Emscripten（ブラウザ）用にラップする
+import asyncio
+from pyodide.ffi import create_proxy
+
+# Kivyが内部で使うウィンドウマネージャをあらかじめインポートして安定させる
+import kivy
+kivy.require('2.3.0')
 `);
 
                 loadingText.innerText = "アプリケーションファイルを展開中...";
