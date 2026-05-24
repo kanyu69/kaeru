@@ -55,7 +55,16 @@
             if (canvas) canvas.style.opacity = "0.5";
         }
 
-        // 低層の未キャッチエラーを強制的に拾って画面に表示する
+        // 通常の例外エラーも画面に強制表示する
+        window.onerror = function (message, source, lineno, colno, error) {
+            const loadingText = document.getElementById('loading');
+            if (loadingText) {
+                loadingText.innerText = `【致命的スクリプトエラー】\n${message}\nLine: ${lineno}`;
+            }
+            return false;
+        };
+
+        // 非同期エラーの監視
         window.addEventListener('unhandledrejection', function (event) {
             const loadingText = document.getElementById('loading');
             if (loadingText) {
@@ -66,6 +75,146 @@
                 }
                 loadingText.innerText = "【致命的エラー】\nUnhandled Rejectionを検出しました:\n" + msg;
             }
+        });
+
+        async function main() {
+            const loadingText = document.getElementById('loading');
+
+            try {
+                // 【修正箇所】loadPyodide の「前」に Canvas と Module を紐付ける
+                window.canvas = document.getElementById('canvas');
+                window.Module = {
+                    canvas: window.canvas,
+                    print: console.log,
+                    printErr: console.error
+                };
+
+                // 1. Python環境の起動
+                let pyodide = await loadPyodide({
+                    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/"
+                });
+                
+                // 3. パッケージマネージャの準備
+                await pyodide.loadPackage(["micropip"]);
+                const micropip = pyodide.pyimport("micropip");
+                
+                // 4. 依存ライブラリのインストール
+                loadingText.innerText = "依存ライブラリをロード中...";
+                await micropip.install(["requests", "pyodide-http"]); 
+
+                // 5. Kivyエンジンのインポート
+                loadingText.innerText = "Kivyグラフィックスエンジンを同期中...\n（これには数十秒かかる場合があります）";
+                try {
+                    await micropip.install("https://pyodide-packages.kivy.org/kivy-2.3.0-cp312-cp312-emscripten_3_1_58_wasm32.whl");
+                } catch (kivyErr) {
+                    throw new Error("Kivyエンジンのインストールに失敗しました:\n" + kivyErr.message);
+                }
+
+                // 6. 仮想ウィンドウ環境の設定 ＆ requestsパッチ
+                pyodide.runPython(`
+import os
+import sys
+
+# KivyにWeb環境であることを通知
+os.environ['KIVY_WINDOW'] = 'sdl2'
+os.environ['KIVY_GL_BACKEND'] = 'gl'
+
+try:
+    import pyodide_http
+    pyodide_http.patch_all()
+    print("Successfully patched 'requests' for Web environment.")
+except Exception as e:
+    print(f"Patch error: {e}")
+`);
+
+                loadingText.innerText = "アプリケーションファイルを展開中...";
+
+                // 7. サーバー上のメインファイル（テキスト系）を同期
+                const filesToLoad = ['main.py', 'main.kv'];
+                for (const file of filesToLoad) {
+                    const response = await fetch(file + '?t=' + new Date().getTime());
+                    if (!response.ok) throw new Error(`${file} が見つかりません`);
+                    const content = await response.text();
+                    pyodide.FS.writeFile(file, content);
+                }
+
+                // 8. 画像アセット（バイナリファイル）を同期
+                const binaryFiles = [
+                    'logo_color_full.png', 'trash_wh.png', 'back_wh.png', 'home.png',
+                    'list.png', 'scan.png', 'history.png', 'set.png', 'icon.png',
+                    'back.png', 'image_br.png', 'light_br.png', 'mail_wh.png',
+                    'top.png', 'lemon.png', 'orange.png', 'zakuro.png', 'back_br.png'
+                ];
+                
+                for (const file of binaryFiles) {
+                    try {
+                        const res = await fetch(file + '?t=' + new Date().getTime());
+                        if (res.ok) {
+                            const data = await res.arrayBuffer();
+                            pyodide.FS.writeFile(file, new Uint8Array(data));
+                        }
+                    } catch (e) {
+                        console.error(`Failed to load asset: ${file}`, e);
+                    }
+                }
+
+                // 9. フォントの設置
+                try {
+                    try { pyodide.FS.mkdir('fonts'); } catch(e) {}
+                    const fontRes = await fetch('fonts/UDEVGothicHS-Regular.ttf?t=' + new Date().getTime());
+                    if (fontRes.ok) {
+                        const fontData = await fontRes.arrayBuffer();
+                        pyodide.FS.writeFile('fonts/UDEVGothicHS-Regular.ttf', new Uint8Array(fontData));
+                    }
+                } catch (e) {
+                    console.error("Font setup error:", e);
+                }
+
+                loadingText.innerText = "画面をレンダリングしています...";
+
+                // 【重要】先にローディングを非表示にする、またはわずかに遅らせる
+                // KivyのメインループがJSのメインスレッドを占有する前にUIを更新させるため
+                setTimeout(async () => {
+                    try {
+                        // 10. アプリ（main.py）を実行
+                        await pyodide.runPythonAsync(`
+import traceback
+import asyncio
+
+try:
+    with open('main.py', 'r', encoding='utf-8') as f:
+        code = f.read()
+    
+    # 既存のグローバル空間で実行
+    exec(code, globals())
+
+except Exception as e:
+    error_detail = traceback.format_exc()
+    print("--- PYTHON CRASH LOG ---")
+    print(error_detail)
+    raise RuntimeError(error_detail)
+`);
+                        // 無事に起動シーケンスが走ったらローディングを消す
+                        if (loadingText) loadingText.style.display = 'none';
+
+                    } catch (pythonAsyncErr) {
+                        if (loadingText) {
+                            loadingText.style.display = 'flex';
+                            loadingText.innerText = "Pythonコードの実行中にエラーが発生しました:\n" + pythonAsyncErr.message;
+                        }
+                    }
+                }, 100);
+
+            } catch (err) {
+                console.error(err);
+                loadingText.innerText = "起動エラーが発生しました:\n" + err.message;
+            }
+        }
+
+        main();
+    </script>
+</body>
+</html>            }
         });
 
         async function main() {
