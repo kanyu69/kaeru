@@ -23,6 +23,7 @@
             display: flex; justify-content: center; align-items: center;
             z-index: 999; font-size: 1.2rem; font-family: sans-serif;
             text-align: center; line-height: 1.6;
+            white-space: pre-wrap; /* 改行を表示するために追加 */
         }
         #camera-container {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -92,7 +93,7 @@ os.environ['KIVY_GL_BACKEND'] = 'gl'
 
                 loadingText.innerText = "アプリケーションファイルを展開中...";
 
-                // 7. サーバー上のメインファイルを同期
+                // 7. サーバー上のメインファイル（テキスト系）を同期
                 const filesToLoad = ['main.py', 'main.kv'];
                 for (const file of filesToLoad) {
                     const response = await fetch(file + '?t=' + new Date().getTime());
@@ -101,30 +102,80 @@ os.environ['KIVY_GL_BACKEND'] = 'gl'
                     pyodide.FS.writeFile(file, content);
                 }
 
-                // フォント設置
+                // 8. 画像アセット（バイナリファイル）を同期
+                // リポジトリにあるロゴ画像などを登録します
+                const binaryFiles = [
+                    'logo_color_full.png',
+                    'trash_wh.png',
+                    'back_wh.png',
+                    'home.png',
+                    'list.png',
+                    'scan.png',
+                    'history.png',
+                    'set.png',
+                    'icon.png',
+                    'back.png',
+                    'image_br.png',
+                    'light_br.png',
+                    'mail_wh.png',
+                    'top.png',  
+                    'lemon.png',   
+                    'orange.png',    
+                    'zakuro.png',
+                    'back_br.png'
+                ];
+                
+                for (const file of binaryFiles) {
+                    try {
+                        const res = await fetch(file + '?t=' + new Date().getTime());
+                        if (res.ok) {
+                            const data = await res.arrayBuffer();
+                            pyodide.FS.writeFile(file, new Uint8Array(data));
+                            console.log(`Loaded image asset: ${file}`);
+                        } else {
+                            console.warn(`Asset missing or error: ${file}`);
+                        }
+                    } catch (e) {
+                        console.error(`Failed to load asset: ${file}`, e);
+                    }
+                }
+
+                // 9. フォントの設置
                 try {
-                    pyodide.FS.mkdir('fonts');
-                    const fontRes = await fetch('fonts/UDEVGothicHS-Regular.ttf');
+                    // ディレクトリを作成（エラーを避けるため存在チェックかtry-catch）
+                    try {
+                        pyodide.FS.mkdir('fonts');
+                    } catch(e) {}
+
+                    const fontRes = await fetch('fonts/UDEVGothicHS-Regular.ttf?t=' + new Date().getTime());
                     if (fontRes.ok) {
                         const fontData = await fontRes.arrayBuffer();
                         pyodide.FS.writeFile('fonts/UDEVGothicHS-Regular.ttf', new Uint8Array(fontData));
+                        console.log("Font loaded successfully.");
+                    } else {
+                        console.warn("Font file not found on server.");
                     }
                 } catch (e) {
-                    console.log("Font setup skipped:", e);
+                    console.error("Font setup error:", e);
                 }
 
                 loadingText.innerText = "画面をレンダリングしています...";
 
-                // 8. アプリ（main.py）を実行
+                // 10. アプリ（main.py）を実行
                 const mainCode = pyodide.FS.readFile('main.py', { encoding: 'utf8' });
                 await pyodide.runPythonAsync(mainCode);
 
-                // 起動完了したら表示
+                // 起動完了したら非表示
                 loadingText.style.display = 'none';
 
             } catch (err) {
                 console.error(err);
-                loadingText.innerText = "起動エラーが発生しました:\n" + err.message;
+                // Python側の詳細なスタックトレースをJavaScript側でも読めるように出力
+                let errorMsg = err.message;
+                if (err.stack) {
+                    console.error(err.stack);
+                }
+                loadingText.innerText = "起動エラーが発生しました:\n" + errorMsg;
             }
         }
 
