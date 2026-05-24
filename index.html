@@ -101,7 +101,7 @@
                 
                 // ここで.whlのインポート時に低層クラッシュが起きるのを防ぐため、明示的にtry-catchで囲む
                 try {
-                    await micropip.install("https://pyodide-packages.kivy.org/kivy-2.3.0-cp311-cp311-emscripten_3_1_45_wasm32.whl");
+                    await micropip.install("https://pyodide-packages.kivy.org/kivy-2.3.0-cp312-cp312-emscripten_3_1_58_wasm32.whl");
                 } catch (kivyErr) {
                     throw new Error("Kivyエンジンのインストール（.whlの展開）に失敗しました。Pyodideとのバージョン互換性がない可能性があります:\n" + kivyErr.message);
                 }
