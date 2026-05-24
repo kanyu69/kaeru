@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Kaeru App</title>
     <!-- PyodideのバージョンをKivyパッケージ推奨のものに固定、あるいは安定版へ -->
-    <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
 
     <style>
@@ -75,7 +75,7 @@
             try {
                 // 1. Python環境の起動
                 let pyodide = await loadPyodide({
-                    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.24.1/full/"
+                    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/"
                 });
                 
                 // 2. Kivyのグラフィックス（Window）がブラウザのCanvasを見つけられるようにグローバル登録
