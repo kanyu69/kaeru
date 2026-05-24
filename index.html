@@ -94,7 +94,8 @@
                 
                 // 4. 依存ライブラリのインストール
                 loadingText.innerText = "依存ライブラリをロード中...";
-                await micropip.install("requests"); 
+                // requests と同時に、それをブラウザ用に変換する pyodide-http もインストールする
+                await micropip.install(["requests", "pyodide-http"]);
 
                 // 5. Kivyエンジンのインポート
                 loadingText.innerText = "Kivyグラフィックスエンジンを同期中...\n（これには数十秒かかる場合があります）";
@@ -106,7 +107,7 @@
                     throw new Error("Kivyエンジンのインストール（.whlの展開）に失敗しました。Pyodideとのバージョン互換性がない可能性があります:\n" + kivyErr.message);
                 }
 
-               // 6. 仮想ウィンドウ環境の設定と、Webブラウザ用イベントループの強制適用
+               // 6. 仮想ウィンドウ環境の設定 ＆ requestsをブラウザ通信にパッチするおまじない
                 pyodide.runPython(`
 import os
 import sys
@@ -115,14 +116,15 @@ import sys
 os.environ['KIVY_WINDOW'] = 'sdl2'
 os.environ['KIVY_GL_BACKEND'] = 'gl'
 
-# 【重要】Pyodide v0.26以降でKivyの非同期クラッシュを防ぐため、
-# 標準の asyncio ループを Emscripten（ブラウザ）用にラップする
-import asyncio
-from pyodide.ffi import create_proxy
-
-# Kivyが内部で使うウィンドウマネージャをあらかじめインポートして安定させる
-import kivy
-kivy.require('2.3.0')
+# 【超重要】requests をブラウザ（JavaScript fetch）で動くように偽装する
+try:
+    import micropip
+    # pyodide-http というブラウザ通信用パッチライブラリをその場で入れる
+    import pyodide_http
+    pyodide_http.patch_all()
+    print("Successfully patched 'requests' for Web environment.")
+except ImportError:
+    pass
 `);
 
                 loadingText.innerText = "アプリケーションファイルを展開中...";
