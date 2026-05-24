@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Kaeru App</title>
+    <!-- PyodideのバージョンをKivyパッケージ推奨のものに固定、あるいは安定版へ -->
     <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
 
@@ -12,7 +13,6 @@
             margin: 0; padding: 0; width: 100%; height: 100%;
             background-color: #000; overflow: hidden;
         }
-        /* Kivyの出力先：公式仕様に合わせた配置 */
         #canvas {
             width: 100%; height: 100%;
             position: absolute; top: 0; left: 0; z-index: 10;
@@ -23,7 +23,10 @@
             display: flex; justify-content: center; align-items: center;
             z-index: 999; font-size: 1.2rem; font-family: sans-serif;
             text-align: center; line-height: 1.6;
-            white-space: pre-wrap; /* 改行を表示するために追加 */
+            white-space: pre-wrap;
+            word-break: break-all;
+            padding: 20px;
+            box-sizing: border-box;
         }
         #camera-container {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -52,6 +55,20 @@
             if (canvas) canvas.style.opacity = "0.5";
         }
 
+        // 低層の未キャッチエラーを強制的に拾って画面に表示する
+        window.addEventListener('unhandledrejection', function (event) {
+            const loadingText = document.getElementById('loading');
+            if (loadingText) {
+                console.error("Caught unhandled rejection:", event.reason);
+                let msg = event.reason ? (event.reason.message || event.reason) : "Unknown error";
+                // Pyodide特有の不完全なエラーオブジェクト対策
+                if (typeof msg === 'object') {
+                    try { msg = JSON.stringify(msg); } catch(e) {}
+                }
+                loadingText.innerText = "【致命的エラー】\nUnhandled Rejectionを検出しました:\n" + msg;
+            }
+        });
+
         async function main() {
             const loadingText = document.getElementById('loading');
 
@@ -64,8 +81,114 @@
                 // 2. Kivyのグラフィックス（Window）がブラウザのCanvasを見つけられるようにグローバル登録
                 window.canvas = document.getElementById('canvas');
                 
-                // 【重要】Kivyが内部で要求するブラウザの描画オブジェクト（Module）を擬似的に定義
+                // Kivy/Emscriptenが内部で要求するModuleオブジェクトを定義
                 window.Module = {
+                    canvas: window.canvas,
+                    print: console.log,
+                    printErr: console.error
+                };
+
+                // 3. パッケージマネージャの準備
+                await pyodide.loadPackage(["micropip"]);
+                const micropip = pyodide.pyimport("micropip");
+                
+                // 4. 依存ライブラリのインストール
+                loadingText.innerText = "依存ライブラリをロード中...";
+                await micropip.install("requests"); 
+
+                // 5. Kivyエンジンのインポート
+                loadingText.innerText = "Kivyグラフィックスエンジンを同期中...\n（これには数十秒かかる場合があります）";
+                
+                // ここで.whlのインポート時に低層クラッシュが起きるのを防ぐため、明示的にtry-catchで囲む
+                try {
+                    await micropip.install("https://pyodide-packages.kivy.org/kivy-2.3.0-cp311-cp311-emscripten_3_1_45_wasm32.whl");
+                } catch (kivyErr) {
+                    throw new Error("Kivyエンジンのインストール（.whlの展開）に失敗しました。Pyodideとのバージョン互換性がない可能性があります:\n" + kivyErr.message);
+                }
+
+                // 6. 仮想ウィンドウ環境をPython側に認識させる
+                pyodide.runPython(`
+import os
+os.environ['KIVY_WINDOW'] = 'sdl2'
+os.environ['KIVY_GL_BACKEND'] = 'gl'
+`);
+
+                loadingText.innerText = "アプリケーションファイルを展開中...";
+
+                // 7. サーバー上のメインファイル（テキスト系）を同期
+                const filesToLoad = ['main.py', 'main.kv'];
+                for (const file of filesToLoad) {
+                    const response = await fetch(file + '?t=' + new Date().getTime());
+                    if (!response.ok) throw new Error(`${file} が見つかりません`);
+                    const content = await response.text();
+                    pyodide.FS.writeFile(file, content);
+                }
+
+                // 8. 画像アセット（バイナリファイル）を同期
+                const binaryFiles = [
+                    'logo_color_full.png', 'trash_wh.png', 'back_wh.png', 'home.png',
+                    'list.png', 'scan.png', 'history.png', 'set.png', 'icon.png',
+                    'back.png', 'image_br.png', 'light_br.png', 'mail_wh.png',
+                    'top.png', 'lemon.png', 'orange.png', 'zakuro.png', 'back_br.png'
+                ];
+                
+                for (const file of binaryFiles) {
+                    try {
+                        const res = await fetch(file + '?t=' + new Date().getTime());
+                        if (res.ok) {
+                            const data = await res.arrayBuffer();
+                            pyodide.FS.writeFile(file, new Uint8Array(data));
+                        }
+                    } catch (e) {
+                        console.error(`Failed to load asset: ${file}`, e);
+                    }
+                }
+
+                // 9. フォントの設置
+                try {
+                    try { pyodide.FS.mkdir('fonts'); } catch(e) {}
+                    const fontRes = await fetch('fonts/UDEVGothicHS-Regular.ttf?t=' + new Date().getTime());
+                    if (fontRes.ok) {
+                        const fontData = await fontRes.arrayBuffer();
+                        pyodide.FS.writeFile('fonts/UDEVGothicHS-Regular.ttf', new Uint8Array(fontData));
+                    }
+                } catch (e) {
+                    console.error("Font setup error:", e);
+                }
+
+                loadingText.innerText = "画面をレンダリングしています...";
+
+                // 10. アプリ（main.py）を実行
+                try {
+                    await pyodide.runPythonAsync(`
+import sys
+import traceback
+
+try:
+    with open('main.py', 'r', encoding='utf-8') as f:
+        code = f.read()
+    exec(code, globals())
+except Exception as e:
+    error_detail = traceback.format_exc()
+    raise RuntimeError(error_detail)
+`);
+                } catch (pythonAsyncErr) {
+                    throw new Error("Pythonコードの実行中に例外が発生しました:\n" + pythonAsyncErr.message);
+                }
+
+                // 起動完了したら非表示
+                loadingText.style.display = 'none';
+
+            } catch (err) {
+                console.error(err);
+                loadingText.innerText = "起動エラーが発生しました:\n" + err.message;
+            }
+        }
+
+        main();
+    </script>
+</body>
+</html>                window.Module = {
                     canvas: window.canvas,
                     print: console.log,
                     printErr: console.error
