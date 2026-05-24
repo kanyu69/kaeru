@@ -176,34 +176,50 @@ except Exception as e:
                 // KivyのメインループがJSのメインスレッドを占有する前にUIを更新させるため
                 setTimeout(async () => {
                     try {
-                        // 10. アプリ（main.py）を実行
-                        await pyodide.runPythonAsync(`
+                        // 【修正】10. アプリ（main.py）を実行
+setTimeout(async () => {
+    try {
+        // Python側でエラーを完全に文字列として捕獲し、JS側に返す
+        const result = await pyodide.runPythonAsync(`
 import traceback
-import asyncio
+import sys
 
+error_msg = None
 try:
     with open('main.py', 'r', encoding='utf-8') as f:
         code = f.read()
     
     # 既存のグローバル空間で実行
     exec(code, globals())
-
 except Exception as e:
-    error_detail = traceback.format_exc()
+    # トレースバックを完全に文字列化して記録
+    error_msg = traceback.format_exc()
     print("--- PYTHON CRASH LOG ---")
-    print(error_detail)
-    raise RuntimeError(error_detail)
-`);
-                        // 無事に起動シーケンスが走ったらローディングを消す
-                        if (loadingText) loadingText.style.display = 'none';
+    print(error_msg)
 
-                    } catch (pythonAsyncErr) {
-                        if (loadingText) {
-                            loadingText.style.display = 'flex';
-                            loadingText.innerText = "Pythonコードの実行中にエラーが発生しました:\n" + pythonAsyncErr.message;
-                        }
-                    }
-                }, 100);
+# エラーメッセージをJSに返す（正常ならNone）
+error_msg
+`);
+
+        // Pythonから戻ってきた値が空（None）でなければエラーとして処理
+        if (result) {
+            if (loadingText) {
+                loadingText.style.display = 'flex';
+                loadingText.innerText = "【Python実行エラー】\n" + result;
+            }
+        } else {
+            // 無事に起動シーケンスが走ったらローディングを消す
+            if (loadingText) loadingText.style.display = 'none';
+        }
+
+    } catch (jsErr) {
+        // 万が一、JS側の低層で落ちた場合
+        if (loadingText) {
+            loadingText.style.display = 'flex';
+            loadingText.innerText = "JS実行エラーが発生しました:\n" + jsErr.message;
+        }
+    }
+}, 100);
 
             } catch (err) {
                 console.error(err);
