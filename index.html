@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Kaeru App</title>
-    <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+    <!-- 安定動作する組み合わせ（Pyodide v0.25.0）に変更 -->
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
 
     <style>
@@ -52,12 +53,10 @@
     <script>
         const loadingText = document.getElementById('loading');
         
-        // 画面のログをリアルタイムに追記していく関数
         function logStatus(msg) {
             console.log(msg);
             if (loadingText) {
                 loadingText.innerText += "\n" + msg;
-                // 常に最新のログ（下部）が見えるようにスクロール
                 loadingText.scrollTop = loadingText.scrollHeight;
             }
         }
@@ -95,9 +94,9 @@
                 };
 
                 // 2. Python環境の起動
-                logStatus("【2】 Pyodideエンジンをロード中...");
+                logStatus("【2】 Pyodideエンジン(v0.25.0)をロード中...");
                 let pyodide = await loadPyodide({
-                    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/"
+                    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.25.0/full/"
                 });
                 logStatus("👉 Pyodideのロード完了");
                 
@@ -110,10 +109,10 @@
                 logStatus("【4】 依存ライブラリ（requests等）をインストール中...");
                 await micropip.install(["requests", "pyodide-http"]); 
 
-                // 5. Kivyエンジンのインポート
-                logStatus("【5】 Kivy (.whl) をダウンロード＆インストール中...\n(これには30秒ほどかかる場合があります)");
+                // 5. Kivyエンジンのインポート (Pyodide v0.25.0 / Python 3.11 に完全に適合した安定版ホストを指定)
+                logStatus("【5】 適合Kivy (.whl) をダウンロード＆インストール中...\n(これには30秒ほどかかる場合があります)");
                 try {
-                    await micropip.install("https://pyodide-packages.kivy.org/kivy-2.3.0-cp312-cp312-emscripten_3_1_58_wasm32.whl");
+                    await micropip.install("https://pyodide-packages.kivy.org/kivy-2.3.0-cp311-cp311-emscripten_3_1_46_wasm32.whl");
                     logStatus("👉 Kivyのインストール完了");
                 } catch (kivyErr) {
                     throw new Error("Kivyインストールフェーズで失敗: " + kivyErr.message);
@@ -206,7 +205,6 @@ error_msg
                     logStatus(`\n❌【Python実行エラー】\n${pythonResult}`);
                 } else {
                     logStatus("🎉 Pythonスクリプトが正常に終了、またはバックグラウンドで起動しました");
-                    // 完全に起動したら3秒後にローディング画面を非表示に（デバッグ用に少し残す）
                     setTimeout(() => {
                         loadingText.style.display = 'none';
                     }, 1000);
@@ -215,152 +213,6 @@ error_msg
             } catch (err) {
                 console.error(err);
                 logStatus(`\n❌【起動プロセス中断】\nエラー内容: ${err.message}`);
-            }
-        }
-
-        // 実行開始
-        main();
-    </script>
-</body>
-</html>
-        // 非同期エラーの監視
-        window.addEventListener('unhandledrejection', function (event) {
-            const loadingText = document.getElementById('loading');
-            if (loadingText) {
-                console.error("Caught unhandled rejection:", event.reason);
-                let msg = event.reason ? (event.reason.message || event.reason) : "Unknown error";
-                if (typeof msg === 'object') {
-                    try { msg = JSON.stringify(msg); } catch(e) {}
-                }
-                loadingText.innerText = "【致命的エラー】\nUnhandled Rejectionを検出しました:\n" + msg;
-            }
-        });
-
-        async function main() {
-            const loadingText = document.getElementById('loading');
-
-            try {
-                // 1. loadPyodide の「前」に Canvas と Module を登録（Emscriptenの初期化バグ防止）
-                window.canvas = document.getElementById('canvas');
-                window.Module = {
-                    canvas: window.canvas,
-                    print: console.log,
-                    printErr: console.error
-                };
-
-                // 2. Python環境の起動
-                let pyodide = await loadPyodide({
-                    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/"
-                });
-                
-                // 3. パッケージマネージャの準備
-                await pyodide.loadPackage(["micropip"]);
-                const micropip = pyodide.pyimport("micropip");
-                
-                // 4. 依存ライブラリのインストール
-                loadingText.innerText = "依存ライブラリをロード中...";
-                await micropip.install(["requests", "pyodide-http"]); 
-
-                // 5. Kivyエンジンのインポート
-                loadingText.innerText = "Kivyグラフィックスエンジンを同期中...\n（これには数十秒かかる場合があります）";
-                try {
-                    await micropip.install("https://pyodide-packages.kivy.org/kivy-2.3.0-cp312-cp312-emscripten_3_1_58_wasm32.whl");
-                } catch (kivyErr) {
-                    throw new Error("Kivyエンジンのインストールに失敗しました:\n" + kivyErr.message);
-                }
-
-                // 6. 仮想ウィンドウ環境の設定 ＆ requestsパッチ
-                pyodide.runPython(`
-import os
-import sys
-
-# KivyにWeb環境であることを通知
-os.environ['KIVY_WINDOW'] = 'sdl2'
-os.environ['KIVY_GL_BACKEND'] = 'gl'
-
-try:
-    import pyodide_http
-    pyodide_http.patch_all()
-    print("Successfully patched 'requests' for Web environment.")
-except Exception as e:
-    print(f"Patch error: {e}")
-`);
-
-                loadingText.innerText = "アプリケーションファイルを展開中...";
-
-                // 7. サーバー上のメインファイル（テキスト系）を同期
-                const filesToLoad = ['main.py', 'main.kv'];
-                for (const file of filesToLoad) {
-                    const response = await fetch(file + '?t=' + new Date().getTime());
-                    if (!response.ok) throw new Error(`${file} が見つかりません`);
-                    const content = await response.text();
-                    pyodide.FS.writeFile(file, content);
-                }
-
-                // 8. 画像アセット（バイナリファイル）を同期
-                const binaryFiles = [
-                    'logo_color_full.png', 'trash_wh.png', 'back_wh.png', 'home.png',
-                    'list.png', 'scan.png', 'history.png', 'set.png', 'icon.png',
-                    'back.png', 'image_br.png', 'light_br.png', 'mail_wh.png',
-                    'top.png', 'lemon.png', 'orange.png', 'zakuro.png', 'back_br.png'
-                ];
-                
-                for (const file of binaryFiles) {
-                    try {
-                        const res = await fetch(file + '?t=' + new Date().getTime());
-                        if (res.ok) {
-                            const data = await res.arrayBuffer();
-                            pyodide.FS.writeFile(file, new Uint8Array(data));
-                        }
-                    } catch (e) {
-                        console.error(`Failed to load asset: ${file}`, e);
-                    }
-                }
-
-                // 9. フォントの設置
-                try {
-                    try { pyodide.FS.mkdir('fonts'); } catch(e) {}
-                    const fontRes = await fetch('fonts/UDEVGothicHS-Regular.ttf?t=' + new Date().getTime());
-                    if (fontRes.ok) {
-                        const fontData = await fontRes.arrayBuffer();
-                        pyodide.FS.writeFile('fonts/UDEVGothicHS-Regular.ttf', new Uint8Array(fontData));
-                    }
-                } catch (e) {
-                    console.error("Font setup error:", e);
-                }
-
-                loadingText.innerText = "画面をレンダリングしています...";
-
-                // 10. アプリ（main.py）を実行（エラーを安全に文字列として捕獲する）
-                const pythonResult = await pyodide.runPythonAsync(`
-import traceback
-import sys
-
-error_msg = None
-try:
-    with open('main.py', 'r', encoding='utf-8') as f:
-        code = f.read()
-    
-    exec(code, globals())
-except Exception as e:
-    error_msg = traceback.format_exc()
-    print("--- PYTHON CRASH LOG ---")
-    print(error_msg)
-
-error_msg
-`);
-
-                // Python側でエラーが発生していた場合、それを画面に表示する
-                if (pythonResult) {
-                    loadingText.innerText = "【Python実行エラー】\n" + pythonResult;
-                } else {
-                    // 正常に起動したらローディングを消す
-                    loadingText.style.display = 'none';
-                }
-
-            } catch (err) {
-                console.error(err);
-                loadingText.innerText = "起動エラーが発生しました:\n" + err.message;
             }
         }
 
