@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Kaeru App</title>
-    <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
 
     <style>
@@ -62,23 +62,13 @@
 
         window.onerror = function (message, source, lineno, colno, error) {
             logStatus(`\n❌【致命的スクリプトエラー】\n${message}\nLine: ${lineno}`);
-            if (error && error.stack) logStatus(`Stack: ${error.stack}`);
             return false;
         };
 
         window.addEventListener('unhandledrejection', function (event) {
             console.error("Caught unhandled rejection:", event.reason);
-            let msg = "Unknown error";
-            let stack = "";
-            if (event.reason) {
-                msg = event.reason.message || event.reason;
-                stack = event.reason.stack || "";
-            }
-            if (typeof msg === 'object') {
-                try { msg = JSON.stringify(msg); } catch(e) {}
-            }
-            logStatus(`\n❌【致命的非同期エラー】\n${msg}`);
-            if (stack) logStatus(`Stack: ${stack}`);
+            let msg = event.reason ? (event.reason.message || event.reason) : "Unknown error";
+            logStatus(`\n❌【非同期エラー検知】\n${msg}`);
         });
 
         async function main() {
@@ -93,9 +83,9 @@
                 };
 
                 // 2. Python環境の起動
-                logStatus("【2】 Pyodideエンジン(v0.25.0)をロード中...");
+                logStatus("【2】 Pyodideエンジン(v0.26.4)をロード中...");
                 let pyodide = await loadPyodide({
-                    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.25.0/full/"
+                    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/"
                 });
                 logStatus("👉 Pyodideのロード完了");
                 
@@ -108,13 +98,14 @@
                 logStatus("【4】 依存ライブラリ（requests等）をインストール中...");
                 await micropip.install(["requests", "pyodide-http"]); 
 
-                // 5. Kivyエンジンのインポート（外部URLではなく、Pyodide組み込みの公式パッケージからロード）
-                logStatus("【5】 公式リポジトリよりKivyパッケージをロード中...");
+                // 5. PyPIから自動で適合するKivyを検索してダウンロード・インストール
+                logStatus("【5】 PyPIリポジトリよりKivyパッケージを自動検索中...\n(これには数十秒かかる場合があります)");
                 try {
-                    await pyodide.loadPackage("kivy");
+                    // URL直指定をやめ、適合するWasm版をmicropipに探させます
+                    await micropip.install("kivy");
                     logStatus("👉 Kivyのインストール完了");
                 } catch (kivyErr) {
-                    throw new Error("Kivyインストールフェーズで失敗: " + kivyErr.message);
+                    throw new Error("Kivy自動インストールで失敗: " + kivyErr.message);
                 }
 
                 // 6. 仮想ウィンドウ環境の設定 ＆ requestsパッチ
@@ -157,8 +148,6 @@ except Exception as e:
                         if (res.ok) {
                             const data = await res.arrayBuffer();
                             pyodide.FS.writeFile(file, new Uint8Array(data));
-                        } else {
-                            console.warn(`Asset skipped (not found): ${file}`);
                         }
                     } catch (e) {
                         console.error(`Failed to load asset: ${file}`, e);
@@ -176,7 +165,7 @@ except Exception as e:
                         pyodide.FS.writeFile('fonts/UDEVGothicHS-Regular.ttf', new Uint8Array(fontData));
                         logStatus("👉 フォントの配置完了");
                     } else {
-                        logStatus("⚠ フォントファイルが見つからないためスキップします");
+                        logStatus("⚠ フォントファイルスキップ");
                     }
                 } catch (e) {
                     console.error("Font setup error:", e);
@@ -203,166 +192,10 @@ error_msg
                 if (pythonResult) {
                     logStatus(`\n❌【Python実行エラー】\n${pythonResult}`);
                 } else {
-                    logStatus("🎉 Pythonスクリプトが正常に終了、またはバックグラウンドで起動しました");
+                    logStatus("🎉 アプリ起動シーケンスへ移行します");
                     setTimeout(() => {
                         loadingText.style.display = 'none';
-                    }, 1000);
-                }
-
-            } catch (err) {
-                console.error(err);
-                logStatus(`\n❌【起動プロセス中断】\nエラー内容: ${err.message}`);
-            }
-        }
-
-        main();
-    </script>
-</body>
-</html>            if (error && error.stack) logStatus(`Stack: ${error.stack}`);
-            return false;
-        };
-
-        window.addEventListener('unhandledrejection', function (event) {
-            console.error("Caught unhandled rejection:", event.reason);
-            let msg = "Unknown error";
-            let stack = "";
-            if (event.reason) {
-                msg = event.reason.message || event.reason;
-                stack = event.reason.stack || "";
-            }
-            if (typeof msg === 'object') {
-                try { msg = JSON.stringify(msg); } catch(e) {}
-            }
-            logStatus(`\n❌【致命的非同期エラー】\n${msg}`);
-            if (stack) logStatus(`Stack: ${stack}`);
-        });
-
-        async function main() {
-            try {
-                // 1. Canvas と Module を登録
-                logStatus("【1】 Canvas要素をセットアップ中...");
-                window.canvas = document.getElementById('canvas');
-                window.Module = {
-                    canvas: window.canvas,
-                    print: function(text) { logStatus("[PyPrint] " + text); },
-                    printErr: function(text) { logStatus("[PyErr] " + text); }
-                };
-
-                // 2. Python環境の起動
-                logStatus("【2】 Pyodideエンジン(v0.25.0)をロード中...");
-                let pyodide = await loadPyodide({
-                    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.25.0/full/"
-                });
-                logStatus("👉 Pyodideのロード完了");
-                
-                // 3. パッケージマネージャの準備
-                logStatus("【3】 micropipパッケージを準備中...");
-                await pyodide.loadPackage(["micropip"]);
-                const micropip = pyodide.pyimport("micropip");
-                
-                // 4. 依存ライブラリのインストール
-                logStatus("【4】 依存ライブラリ（requests等）をインストール中...");
-                await micropip.install(["requests", "pyodide-http"]); 
-
-                // 5. Kivyエンジンのインポート (Pyodide v0.25.0 / Python 3.11 に完全に適合した安定版ホストを指定)
-                logStatus("【5】 適合Kivy (.whl) をダウンロード＆インストール中...\n(これには30秒ほどかかる場合があります)");
-                try {
-                    await micropip.install("https://pyodide-packages.kivy.org/kivy-2.3.0-cp311-cp311-emscripten_3_1_46_wasm32.whl");
-                    logStatus("👉 Kivyのインストール完了");
-                } catch (kivyErr) {
-                    throw new Error("Kivyインストールフェーズで失敗: " + kivyErr.message);
-                }
-
-                // 6. 仮想ウィンドウ環境の設定 ＆ requestsパッチ
-                logStatus("【6】 仮想環境（SDL2/GL）の初期化設定中...");
-                pyodide.runPython(`
-import os
-import sys
-os.environ['KIVY_WINDOW'] = 'sdl2'
-os.environ['KIVY_GL_BACKEND'] = 'gl'
-try:
-    import pyodide_http
-    pyodide_http.patch_all()
-except Exception as e:
-    print(f"Patch error: {e}")
-`);
-
-                // 7. サーバー上のメインファイル（テキスト系）を同期
-                logStatus("【7】 main.py / main.kv を取得中...");
-                const filesToLoad = ['main.py', 'main.kv'];
-                for (const file of filesToLoad) {
-                    const response = await fetch(file + '?t=' + new Date().getTime());
-                    if (!response.ok) throw new Error(`${file} のフェッチに失敗しました`);
-                    const content = await response.text();
-                    pyodide.FS.writeFile(file, content);
-                    logStatus(`👉 ${file} の配置完了`);
-                }
-
-                // 8. 画像アセット（バイナリファイル）を同期
-                logStatus("【8】 画像アセット（バイナリ）を配置中...");
-                const binaryFiles = [
-                    'logo_color_full.png', 'trash_wh.png', 'back_wh.png', 'home.png',
-                    'list.png', 'scan.png', 'history.png', 'set.png', 'icon.png',
-                    'back.png', 'image_br.png', 'light_br.png', 'mail_wh.png',
-                    'top.png', 'lemon.png', 'orange.png', 'zakuro.png', 'back_br.png'
-                ];
-                
-                for (const file of binaryFiles) {
-                    try {
-                        const res = await fetch(file + '?t=' + new Date().getTime());
-                        if (res.ok) {
-                            const data = await res.arrayBuffer();
-                            pyodide.FS.writeFile(file, new Uint8Array(data));
-                        } else {
-                            console.warn(`Asset skipped (not found): ${file}`);
-                        }
-                    } catch (e) {
-                        console.error(`Failed to load asset: ${file}`, e);
-                    }
-                }
-                logStatus("👉 画像アセットの処理完了");
-
-                // 9. フォントの設置
-                logStatus("【9】 カスタムフォントを配置中...");
-                try {
-                    try { pyodide.FS.mkdir('fonts'); } catch(e) {}
-                    const fontRes = await fetch('fonts/UDEVGothicHS-Regular.ttf?t=' + new Date().getTime());
-                    if (fontRes.ok) {
-                        const fontData = await fontRes.arrayBuffer();
-                        pyodide.FS.writeFile('fonts/UDEVGothicHS-Regular.ttf', new Uint8Array(fontData));
-                        logStatus("👉 フォントの配置完了");
-                    } else {
-                        logStatus("⚠ フォントファイルが見つからないためスキップします");
-                    }
-                } catch (e) {
-                    console.error("Font setup error:", e);
-                }
-
-                // 10. アプリ（main.py）を実行
-                logStatus("【10】 main.py の実行を開始します...");
-                const pythonResult = await pyodide.runPythonAsync(`
-import traceback
-import sys
-
-error_msg = None
-try:
-    with open('main.py', 'r', encoding='utf-8') as f:
-        code = f.read()
-    
-    exec(code, globals())
-except Exception as e:
-    error_msg = traceback.format_exc()
-
-error_msg
-`);
-
-                if (pythonResult) {
-                    logStatus(`\n❌【Python実行エラー】\n${pythonResult}`);
-                } else {
-                    logStatus("🎉 Pythonスクリプトが正常に終了、またはバックグラウンドで起動しました");
-                    setTimeout(() => {
-                        loadingText.style.display = 'none';
-                    }, 1000);
+                    }, 1500);
                 }
 
             } catch (err) {
