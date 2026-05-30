@@ -25,7 +25,7 @@
             animation: spin 1s linear infinite; margin-bottom: 20px;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        #loading-text { font-size: 14px; color: #aaaaaa; line-height: 1.6; white-space: pre-wrap; }
+        #loading-text { font-size: 14px; color: #aaaaaa; line-height: 1.6; white-space: pre-wrap; word-break: break-all; }
     </style>
 </head>
 <body>
@@ -48,15 +48,15 @@
                 await pyodide.loadPackage(["micropip"]);
                 const micropip = pyodide.pyimport("micropip");
 
-                // ✨ここがポイント：エラーの原因になる重いFlet全体を避け、
-                // Fletの「軽量ピュアPythonコア（flet-core）」だけを指定してインストールします！
-                status.innerText = "【3/3】 アプリUIを組み立て中...\n(初回のみ数十秒かかります)";
+                status.innerText = "【3/3】 アプリUIを組み立て中...";
                 await micropip.install("flet-core");
 
-                // サーバーから flet_main.py を読み込む
+                // 📁 ファイル取得処理（エラーログを詳細化）
                 const res = await fetch('flet_main.py?t=' + new Date().getTime());
-                if (!res.ok) throw new Error("flet_main.py の読み込みに失敗しました");
-                const code = await res.ok ? await res.text() : "";
+                if (!res.ok) {
+                    throw new Error(`flet_main.py が見つかりません (Status: ${res.status} ${res.statusText})`);
+                }
+                const code = await res.text();
 
                 // ブラウザ上でPythonコードを実行
                 pyodide.runPython(code);
@@ -64,6 +64,15 @@
                 // 起動完了したらロード画面を消す
                 document.getElementById('loading').style.display = 'none';
 
+            } catch (err) {
+                status.innerHTML = `<span style="color:#ff6666; font-weight:bold;">起動エラーが発生しました</span><br><br><small style="color:#cccccc; text-align:left; display:block;">${err.message}</small>`;
+                console.error(err);
+            }
+        }
+        main();
+    </script>
+</body>
+</html>
             } catch (err) {
                 status.innerHTML = `<span style="color:#ff6666; font-weight:bold;">起動エラーが発生しました</span><br><small style="color:#cccccc;">${err.message}</small>`;
                 console.error(err);
