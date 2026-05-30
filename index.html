@@ -3,208 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Kaeru App</title>
-    <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
-    <script src="https://unpkg.com/html5-qrcode"></script>
-
+    <title>Boycott App</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/flet/0.21.2/flet.min.js"></script>
     <style>
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
-            background-color: #000; overflow: hidden;
+            background-color: #262626; overflow: hidden;
         }
-        #canvas {
+        #flet-app-container {
             width: 100%; height: 100%;
-            position: absolute; top: 0; left: 0; z-index: 10;
-        }
-        #loading {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: #222; color: white;
-            display: flex; justify-content: center; align-items: center;
-            z-index: 999; font-size: 1.1rem; font-family: monospace;
-            text-align: left; line-height: 1.5;
-            white-space: pre-wrap;
-            word-break: break-all;
-            padding: 20px;
-            box-sizing: border-box;
-            overflow-y: auto;
-        }
-        #camera-container {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 1; display: none;
-        }
-        #camera-video {
-            width: 100%; height: 100%; object-fit: cover;
         }
     </style>
 </head>
 <body>
 
-    <div id="loading">【0】 起動処理を開始します...</div>
-    
-    <div id="camera-container">
-        <video id="camera-video" autoplay playsinline muted></video>
-    </div>
-
-    <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
-
-    <script src="web_bridge.js"></script>
+    <div id="flet-app-container"></div>
 
     <script>
-        const loadingText = document.getElementById('loading');
-        
-        function logStatus(msg) {
-            console.log(msg);
-            if (loadingText) {
-                loadingText.innerText += "\n" + msg;
-                loadingText.scrollTop = loadingText.scrollHeight;
-            }
-        }
-
-        window.onerror = function (message, source, lineno, colno, error) {
-            logStatus(`\n❌【致命的スクリプトエラー】\n${message}\nLine: ${lineno}`);
-            return false;
-        };
-
-        window.addEventListener('unhandledrejection', function (event) {
-            console.error("Caught unhandled rejection:", event.reason);
-            let msg = event.reason ? (event.reason.message || event.reason) : "Unknown error";
-            logStatus(`\n❌【非同期エラー検知】\n${msg}`);
+        document.addEventListener("DOMContentLoaded", function() {
+            // flet_main.py をブラウザ上でロードして実行する命令
+            flet.createApp("flet-app-container", {
+                pythonScript: "flet_main.py"
+            });
         });
-
-        async function main() {
-            try {
-                // 1. Canvas と Module を登録
-                logStatus("【1】 Canvas要素をセットアップ中...");
-                window.canvas = document.getElementById('canvas');
-                window.Module = {
-                    canvas: window.canvas,
-                    print: function(text) { logStatus("[PyPrint] " + text); },
-                    printErr: function(text) { logStatus("[PyErr] " + text); }
-                };
-
-                // 2. Python環境の起動
-                logStatus("【2】 Pyodideエンジン(v0.26.4)をロード中...");
-                let pyodide = await loadPyodide({
-                    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/"
-                });
-                logStatus("👉 Pyodideのロード完了");
-                
-                // 3. パッケージマネージャの準備
-                logStatus("【3】 micropipパッケージを準備中...");
-                await pyodide.loadPackage(["micropip"]);
-                const micropip = pyodide.pyimport("micropip");
-                
-                // 4. 依存ライブラリのインストール
-                logStatus("【4】 依存ライブラリ（requests等）をインストール中...");
-                await micropip.install(["requests", "pyodide-http"]); 
-
-                // 5. PyPIから自動で適合するKivyを検索してダウンロード・インストール
-                logStatus("【5】 PyPIリポジトリよりKivyパッケージを自動検索中...\n(これには数十秒かかる場合があります)");
-                try {
-                    // URL直指定をやめ、適合するWasm版をmicropipに探させます
-                    await micropip.install("kivy");
-                    logStatus("👉 Kivyのインストール完了");
-                } catch (kivyErr) {
-                    throw new Error("Kivy自動インストールで失敗: " + kivyErr.message);
-                }
-
-                // 6. 仮想ウィンドウ環境の設定 ＆ requestsパッチ
-                logStatus("【6】 仮想環境（SDL2/GL）の初期化設定中...");
-                pyodide.runPython(`
-import os
-import sys
-os.environ['KIVY_WINDOW'] = 'sdl2'
-os.environ['KIVY_GL_BACKEND'] = 'gl'
-try:
-    import pyodide_http
-    pyodide_http.patch_all()
-except Exception as e:
-    print(f"Patch error: {e}")
-`);
-
-                // 7. サーバー上のメインファイル（テキスト系）を同期
-                logStatus("【7】 main.py / main.kv を取得中...");
-                const filesToLoad = ['main.py', 'main.kv'];
-                for (const file of filesToLoad) {
-                    const response = await fetch(file + '?t=' + new Date().getTime());
-                    if (!response.ok) throw new Error(`${file} のフェッチに失敗しました`);
-                    const content = await response.text();
-                    pyodide.FS.writeFile(file, content);
-                    logStatus(`👉 ${file} の配置完了`);
-                }
-
-                // 8. 画像アセット（バイナリファイル）を同期
-                logStatus("【8】 画像アセット（バイナリ）を配置中...");
-                const binaryFiles = [
-                    'logo_color_full.png', 'trash_wh.png', 'back_wh.png', 'home.png',
-                    'list.png', 'scan.png', 'history.png', 'set.png', 'icon.png',
-                    'back.png', 'image_br.png', 'light_br.png', 'mail_wh.png',
-                    'top.png', 'lemon.png', 'orange.png', 'zakuro.png', 'back_br.png'
-                ];
-                
-                for (const file of binaryFiles) {
-                    try {
-                        const res = await fetch(file + '?t=' + new Date().getTime());
-                        if (res.ok) {
-                            const data = await res.arrayBuffer();
-                            pyodide.FS.writeFile(file, new Uint8Array(data));
-                        }
-                    } catch (e) {
-                        console.error(`Failed to load asset: ${file}`, e);
-                    }
-                }
-                logStatus("👉 画像アセットの処理完了");
-
-                // 9. フォントの設置
-                logStatus("【9】 カスタムフォントを配置中...");
-                try {
-                    try { pyodide.FS.mkdir('fonts'); } catch(e) {}
-                    const fontRes = await fetch('fonts/UDEVGothicHS-Regular.ttf?t=' + new Date().getTime());
-                    if (fontRes.ok) {
-                        const fontData = await fontRes.arrayBuffer();
-                        pyodide.FS.writeFile('fonts/UDEVGothicHS-Regular.ttf', new Uint8Array(fontData));
-                        logStatus("👉 フォントの配置完了");
-                    } else {
-                        logStatus("⚠ フォントファイルスキップ");
-                    }
-                } catch (e) {
-                    console.error("Font setup error:", e);
-                }
-
-                // 10. アプリ（main.py）を実行
-                logStatus("【10】 main.py の実行を開始します...");
-                const pythonResult = await pyodide.runPythonAsync(`
-import traceback
-import sys
-
-error_msg = None
-try:
-    with open('main.py', 'r', encoding='utf-8') as f:
-        code = f.read()
-    
-    exec(code, globals())
-except Exception as e:
-    error_msg = traceback.format_exc()
-
-error_msg
-`);
-
-                if (pythonResult) {
-                    logStatus(`\n❌【Python実行エラー】\n${pythonResult}`);
-                } else {
-                    logStatus("🎉 アプリ起動シーケンスへ移行します");
-                    setTimeout(() => {
-                        loadingText.style.display = 'none';
-                    }, 1500);
-                }
-
-            } catch (err) {
-                console.error(err);
-                logStatus(`\n❌【起動プロセス中断】\nエラー内容: ${err.message}`);
-            }
-        }
-
-        main();
     </script>
 </body>
 </html>
