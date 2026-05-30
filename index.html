@@ -3,29 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Boycott App</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/flet/0.21.2/flet.min.js"></script>
+    <title>Kaeru App</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flet/0.22.1/flet.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/flet/0.22.1/flet.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+
     <style>
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
             background-color: #262626; overflow: hidden;
+            color: white; font-family: sans-serif;
         }
-        #flet-app-container {
-            width: 100%; height: 100%;
+        #loading {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #262626; display: flex; justify-content: center;
+            align-items: center; flex-direction: column; z-index: 999;
         }
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.1); width: 36px; height: 36px;
+            border-radius: 50%; border-left-color: #339966;
+            animation: spin 1s linear infinite; margin-bottom: 20px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #flet-app-container { width: 100%; height: 100%; }
     </style>
 </head>
 <body>
 
+    <div id="loading">
+        <div class="spinner"></div>
+        <div id="loading-text">Flet環境を起動中...</div>
+    </div>
+
     <div id="flet-app-container"></div>
 
     <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            // flet_main.py をブラウザ上でロードして実行する命令
-            flet.createApp("flet-app-container", {
-                pythonScript: "flet_main.py"
-            });
-        });
+        async function loadApp() {
+            const statusText = document.getElementById('loading-text');
+            try {
+                statusText.innerText = "Pythonエンジンを初期化中...";
+                let pyodide = await loadPyodide();
+                
+                statusText.innerText = "Fletパッケージをインストール中...";
+                await pyodide.loadPackage("micropip");
+                const micropip = pyodide.pyimport("micropip");
+                await micropip.install("flet");
+
+                statusText.innerText = "アプリを起動中...";
+                // サーバー上の flet_main.py を取得して実行
+                const response = await fetch('flet_main.py?t=' + new Date().getTime());
+                const code = await response.text();
+                
+                // Pyodide内でコードを実行し、fletにコンテナを渡す
+                pyodide.runPython(code);
+                
+                // ロード画面を非表示に
+                document.getElementById('loading').style.display = 'none';
+            } catch (err) {
+                statusText.innerHTML = `<span style="color:#ff6666;">起動エラーが発生しました</span><br><small>${err.message}</small>`;
+                console.error(err);
+            }
+        }
+        
+        document.addEventListener("DOMContentLoaded", loadApp);
     </script>
 </body>
 </html>
