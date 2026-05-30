@@ -1,4 +1,4 @@
-name: Deploy Kivy Web App
+name: Deploy Flet Web App
 
 on:
   push:
@@ -21,18 +21,22 @@ jobs:
           # 1. 公開用のdistフォルダを作成
           mkdir -p ./dist
           
-          # 2. 必要なファイルをすべてdistフォルダに直接集める
-          cp main.py ./dist/
-          cp main.kv ./dist/
+          # 2. Fletアプリに必要なファイルをすべてdistフォルダに直接集める
           cp index.html ./dist/
-          cp web_bridge.js ./dist/ || true
+          cp flet.js ./dist/
+          cp flet_main.py ./dist/
           
-          # 3. フォントフォルダがあれば丸ごとコピー
+          # 3. 画像やアイコンフォルダ（data）があれば丸ごとコピー
+          if [ -d "data" ]; then
+            cp -r data ./dist/
+          fi
+
+          # 4. フォントフォルダ（fonts）があれば丸ごとコピー
           if [ -d "fonts" ]; then
             cp -r fonts ./dist/
           fi
           
-          echo "Files inside dist:"
+          echo "=== 配信フォルダ（dist）の中身を確認 ==="
           ls -la ./dist
 
       - name: Upload artifact
