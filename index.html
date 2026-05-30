@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Kaeru App</title>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/flet/0.22.1/flet.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+
     <style>
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
@@ -16,6 +17,7 @@
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: #262626; display: flex; justify-content: center;
             align-items: center; flex-direction: column; z-index: 999;
+            padding: 20px; box-sizing: border-box; text-align: center;
         }
         .spinner {
             border: 4px solid rgba(255,255,255,0.1); width: 36px; height: 36px;
@@ -23,32 +25,51 @@
             animation: spin 1s linear infinite; margin-bottom: 20px;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        #flet-app-container { width: 100%; height: 100%; }
+        #loading-text { font-size: 14px; color: #aaaaaa; line-height: 1.6; white-space: pre-wrap; }
     </style>
 </head>
 <body>
 
     <div id="loading">
         <div class="spinner"></div>
-        <div id="loading-text">Kaeru アプリを起動中...</div>
+        <div id="loading-text">アプリ環境を起動中...</div>
     </div>
 
-    <div id="flet-app-container"></div>
-
     <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            // flet_main.py をWeb用UIとして直接マウントして起動します
-            flet.createApp("flet-app-container", {
-                pythonScript: "flet_main.py"
-            }).then(() => {
-                // 起動が成功したらローディング画面を消す
+        async function main() {
+            const status = document.getElementById('loading-text');
+            try {
+                status.innerText = "【1/3】 Pythonエンジンを起動中...";
+                let pyodide = await loadPyodide({
+                    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/"
+                });
+
+                status.innerText = "【2/3】 拡張パッケージを準備中...";
+                await pyodide.loadPackage(["micropip"]);
+                const micropip = pyodide.pyimport("micropip");
+
+                // ✨ここがポイント：エラーの原因になる重いFlet全体を避け、
+                // Fletの「軽量ピュアPythonコア（flet-core）」だけを指定してインストールします！
+                status.innerText = "【3/3】 アプリUIを組み立て中...\n(初回のみ数十秒かかります)";
+                await micropip.install("flet-core");
+
+                // サーバーから flet_main.py を読み込む
+                const res = await fetch('flet_main.py?t=' + new Date().getTime());
+                if (!res.ok) throw new Error("flet_main.py の読み込みに失敗しました");
+                const code = await res.ok ? await res.text() : "";
+
+                // ブラウザ上でPythonコードを実行
+                pyodide.runPython(code);
+
+                // 起動完了したらロード画面を消す
                 document.getElementById('loading').style.display = 'none';
-            }).catch((err) => {
-                document.getElementById('loading-text').innerHTML = 
-                    `<span style="color:#ff6666;">起動エラーが発生しました</span><br><small>${err.message}</small>`;
+
+            } catch (err) {
+                status.innerHTML = `<span style="color:#ff6666; font-weight:bold;">起動エラーが発生しました</span><br><small style="color:#cccccc;">${err.message}</small>`;
                 console.error(err);
-            });
-        });
+            }
+        }
+        main();
     </script>
 </body>
 </html>
