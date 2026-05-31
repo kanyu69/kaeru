@@ -102,8 +102,12 @@ def get_settings_content(lang, on_toggle_lang):
     ], spacing=0), expand=True)
 
 def main(page: ft.Page):
+    # ✨ ブラウザで確実に最大表示させるための設定を追加
     page.title = "Boycott App"
     page.padding = 0
+    page.window_width = 400
+    page.window_height = 800
+    
     saved_lang = page.client_storage.get("user_lang") or "ja"
     state = {"current_screen": "main", "lang": saved_lang}
     main_content_area = ft.Container(expand=True)
@@ -131,4 +135,8 @@ def main(page: ft.Page):
         refresh_ui()
 
     refresh_ui()
+    # ✨ 縦横に引き伸ばして画面に配置
     page.add(ft.Column([main_content_area, BottomMenuBar(current_screen="main", on_change_screen=change_screen, lang=state["lang"])], spacing=0, expand=True))
+
+# 後方の余計なインデントによるエラーを防ぐため末尾はスッキリさせます
+ft.app(target=main)
