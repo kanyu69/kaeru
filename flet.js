@@ -60,7 +60,7 @@
                 }
             });
 
-            // app関数の挙動をブラウザ環境用にオーバーライド（Connectionダミー完全版）
+            // app関数の挙動をブラウザ環境用にオーバーライド（ClientStorage対策完全版）
             pyodide.runPython(`
 def browser_app(target, *args, **kwargs):
     from flet_core.page import Page
@@ -73,10 +73,14 @@ def browser_app(target, *args, **kwargs):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         
-    # ✨ 'NoneType' エラーを防ぐため、Pageクラスが内部で要求する最低限のプロパティを持ったダミーオブジェクトを生成
     class DummyPubSubHub:
+        def __init__(self): pass
+            
+    # ✨ invoke_methodの応答でエラーを起こさせないための、ダミーの結果オブジェクト
+    class DummyInvokeResult:
         def __init__(self):
-            pass
+            self.result = ""
+            self.error = ""
             
     class DummyConnection:
         def __init__(self):
@@ -84,12 +88,25 @@ def browser_app(target, *args, **kwargs):
             self.page_url = "http://localhost"
             
         def send_command(self, session_id, command):
-            # コマンド送信をエミュレート（エラーを防ぐ）
-            pass
+            return DummyInvokeResult()
             
-    # 作成したダミーConnectionを第一引数に引き渡します
+        def send_command_async(self, session_id, command):
+            async def dummy_async():
+                return DummyInvokeResult()
+            return dummy_async()
+            
     conn = DummyConnection()
     p = Page(conn, "kaeru-session-001", loop)
+    
+    # ✨ ClientStorageの読み書きメソッドがクラッシュするのを防ぐため、Page側の通信処理をダミーに差し替え
+    def dummy_invoke(method_name, args):
+        return DummyInvokeResult()
+    p._invoke_method = dummy_invoke
+    
+    # 非同期版も同様にパッチを当てる
+    async def dummy_invoke_async(method_name, args):
+        return DummyInvokeResult()
+    p._invoke_method_async = dummy_invoke_async
     
     def web_update():
         js_renderer.renderPage()
