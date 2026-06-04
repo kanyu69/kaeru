@@ -60,7 +60,7 @@
                 }
             });
 
-            // app関数の挙動をブラウザ環境用にオーバーライド（2重JSONパース完全対応版）
+            // app関数の挙動をブラウザ環境用にオーバーライド（JSONDecodeError 厳密対策版）
             pyodide.runPython(`
 def browser_app(target, *args, **kwargs):
     from flet_core.page import Page
@@ -82,24 +82,24 @@ def browser_app(target, *args, **kwargs):
             self.page_url = "http://localhost"
             
         def send_command(self, session_id, command):
-            # 2回連続の json.loads() に耐えられるように2重ラップされた文字列を返します
-            return '"\\\"null\\\""'
+            # ✨ 2連続の json.loads() を100%エラーなく通過させる厳密な3重シリアライズ文字列
+            return '"\\\\\\"null\\\\\\""'
             
         def send_command_async(self, session_id, command):
             async def dummy_async():
-                return '"\\\"null\\\""'
+                return '"\\\\\\"null\\\\\\""'
             return dummy_async()
             
     conn = DummyConnection()
     p = Page(conn, "kaeru-session-001", loop)
     
-    # ✨ _invoke_method の返り値そのものを「2重にシリアライズされたJSON文字列」にします
+    # ✨ どのような方法で呼び出されても、この厳密な文字列を返してパースを突破させます
     def dummy_invoke(method_name, args=None, *vargs, **vkwargs):
-        return '"\\\"null\\\""'
+        return '"\\\\\\"null\\\\\\""'
     p._invoke_method = dummy_invoke
     
     async def dummy_invoke_async(method_name, args=None, *vargs, **vkwargs):
-        return '"\\\"null\\\""'
+        return '"\\\\\\"null\\\\\\""'
     p._invoke_method_async = dummy_invoke_async
     
     def web_update():
