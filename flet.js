@@ -60,12 +60,13 @@
                 }
             });
 
-            // app関数の挙動をブラウザ環境用にオーバーライド（あらゆるキーワード引数を許容する完全版）
+            // app関数の挙動をブラウザ環境用にオーバーライド（JSONパースエラー完全対策版）
             pyodide.runPython(`
 def browser_app(target, *args, **kwargs):
     from flet_core.page import Page
     import js_renderer
     import asyncio
+    import json
     
     try:
         loop = asyncio.get_running_loop()
@@ -76,9 +77,10 @@ def browser_app(target, *args, **kwargs):
     class DummyPubSubHub:
         def __init__(self): pass
             
+    # ✨ json.loads() が正常に処理できるように、.result にJSON形式の空文字列（"null" をダブルクォートで囲った文字列）を仕込みます
     class DummyInvokeResult:
         def __init__(self):
-            self.result = ""
+            self.result = '"null"'
             self.error = ""
             
     class DummyConnection:
@@ -97,7 +99,7 @@ def browser_app(target, *args, **kwargs):
     conn = DummyConnection()
     p = Page(conn, "kaeru-session-001", loop)
     
-    # ✨ *args, **kwargs を指定することで、wait_for_result 等のどんな引数が飛んできても完全に受け流します
+    # 読み込み時・書き込み時どちらのメソッドでも、この正しい型を持ったダミーを返すようにします
     def dummy_invoke(method_name, args=None, *vargs, **vkwargs):
         return DummyInvokeResult()
     p._invoke_method = dummy_invoke
