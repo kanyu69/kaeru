@@ -19,7 +19,7 @@
     loader.innerHTML = '<div><div id="flet-spinner" style="border:4px solid rgba(255,255,255,0.1); width:36px; height:36px; border-radius:50%; border-left-color:#339966; margin:0 auto 20px;"></div><div id="load-text">Python環境を起動中...</div></div>';
     document.body.appendChild(loader);
     
-    // アニメーション用スタイルの追加（エラーの原因だった箇所を安全に修正）
+    // アニメーション用スタイルの追加
     const styleRef = document.createElement('style');
     styleRef.type = 'text/css';
     styleRef.innerHTML = "@keyframes flet-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } } #flet-spinner { animation: flet-spin 1s linear infinite; }";
@@ -60,12 +60,22 @@
                 }
             });
 
-            // app関数の挙動をブラウザ環境用にオーバーライド
+            // app関数の挙動をブラウザ環境用にオーバーライド（loopエラー対策版）
             pyodide.runPython(`
 def browser_app(target, *args, **kwargs):
     from flet_core.page import Page
     import js_renderer
-    p = Page(None, "kaeru-app")
+    import asyncio
+    
+    # ✨ エラーの原因だったイベントループを取得して Page に引き渡します
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+    # 不足していた 'loop' 引数をしっかりと指定してページを生成
+    p = Page(None, "kaeru-app", loop=loop)
     
     def web_update():
         js_renderer.renderPage()
