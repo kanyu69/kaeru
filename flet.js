@@ -60,13 +60,12 @@
                 }
             });
 
-            // app関数の挙動をブラウザ環境用にオーバーライド（JSONパースエラー完全対策版）
+            // app関数の挙動をブラウザ環境用にオーバーライド（2重JSONパース完全対応版）
             pyodide.runPython(`
 def browser_app(target, *args, **kwargs):
     from flet_core.page import Page
     import js_renderer
     import asyncio
-    import json
     
     try:
         loop = asyncio.get_running_loop()
@@ -77,35 +76,30 @@ def browser_app(target, *args, **kwargs):
     class DummyPubSubHub:
         def __init__(self): pass
             
-    # ✨ json.loads() が正常に処理できるように、.result にJSON形式の空文字列（"null" をダブルクォートで囲った文字列）を仕込みます
-    class DummyInvokeResult:
-        def __init__(self):
-            self.result = '"null"'
-            self.error = ""
-            
     class DummyConnection:
         def __init__(self):
             self.pubsubhub = DummyPubSubHub()
             self.page_url = "http://localhost"
             
         def send_command(self, session_id, command):
-            return DummyInvokeResult()
+            # 2回連続の json.loads() に耐えられるように2重ラップされた文字列を返します
+            return '"\\\"null\\\""'
             
         def send_command_async(self, session_id, command):
             async def dummy_async():
-                return DummyInvokeResult()
+                return '"\\\"null\\\""'
             return dummy_async()
             
     conn = DummyConnection()
     p = Page(conn, "kaeru-session-001", loop)
     
-    # 読み込み時・書き込み時どちらのメソッドでも、この正しい型を持ったダミーを返すようにします
+    # ✨ _invoke_method の返り値そのものを「2重にシリアライズされたJSON文字列」にします
     def dummy_invoke(method_name, args=None, *vargs, **vkwargs):
-        return DummyInvokeResult()
+        return '"\\\"null\\\""'
     p._invoke_method = dummy_invoke
     
     async def dummy_invoke_async(method_name, args=None, *vargs, **vkwargs):
-        return DummyInvokeResult()
+        return '"\\\"null\\\""'
     p._invoke_method_async = dummy_invoke_async
     
     def web_update():
