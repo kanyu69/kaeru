@@ -60,22 +60,21 @@
                 }
             });
 
-            // app関数の挙動をブラウザ環境用にオーバーライド（loopエラー対策版）
+            // app関数の挙動をブラウザ環境用にオーバーライド（引数の位置完全固定版）
             pyodide.runPython(`
 def browser_app(target, *args, **kwargs):
     from flet_core.page import Page
     import js_renderer
     import asyncio
     
-    # ✨ エラーの原因だったイベントループを取得して Page に引き渡します
     try:
         loop = asyncio.get_running_loop()
     except RuntimeError:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         
-    # 不足していた 'loop' 引数をしっかりと指定してページを生成
-    p = Page(None, "kaeru-app", loop=loop)
+    # ✨ キーワード引数を使わず、Pageクラスの第一引数（conn）、第二引数（session_id）、そして不足していたイベントループ（loop）を順番通りに強制的に流し込みます
+    p = Page(None, "kaeru-session-001", loop)
     
     def web_update():
         js_renderer.renderPage()
