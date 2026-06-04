@@ -60,7 +60,7 @@
                 }
             });
 
-            // app関数の挙動をブラウザ環境用にオーバーライド（引数の位置完全固定版）
+            // app関数の挙動をブラウザ環境用にオーバーライド（Connectionダミー完全版）
             pyodide.runPython(`
 def browser_app(target, *args, **kwargs):
     from flet_core.page import Page
@@ -73,8 +73,23 @@ def browser_app(target, *args, **kwargs):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         
-    # ✨ キーワード引数を使わず、Pageクラスの第一引数（conn）、第二引数（session_id）、そして不足していたイベントループ（loop）を順番通りに強制的に流し込みます
-    p = Page(None, "kaeru-session-001", loop)
+    # ✨ 'NoneType' エラーを防ぐため、Pageクラスが内部で要求する最低限のプロパティを持ったダミーオブジェクトを生成
+    class DummyPubSubHub:
+        def __init__(self):
+            pass
+            
+    class DummyConnection:
+        def __init__(self):
+            self.pubsubhub = DummyPubSubHub()
+            self.page_url = "http://localhost"
+            
+        def send_command(self, session_id, command):
+            # コマンド送信をエミュレート（エラーを防ぐ）
+            pass
+            
+    # 作成したダミーConnectionを第一引数に引き渡します
+    conn = DummyConnection()
+    p = Page(conn, "kaeru-session-001", loop)
     
     def web_update():
         js_renderer.renderPage()
