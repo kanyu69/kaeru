@@ -60,7 +60,7 @@
                 }
             });
 
-            // app関数の挙動をブラウザ環境用にオーバーライド（ClientStorage対策完全版）
+            // app関数の挙動をブラウザ環境用にオーバーライド（あらゆるキーワード引数を許容する完全版）
             pyodide.runPython(`
 def browser_app(target, *args, **kwargs):
     from flet_core.page import Page
@@ -76,7 +76,6 @@ def browser_app(target, *args, **kwargs):
     class DummyPubSubHub:
         def __init__(self): pass
             
-    # ✨ invoke_methodの応答でエラーを起こさせないための、ダミーの結果オブジェクト
     class DummyInvokeResult:
         def __init__(self):
             self.result = ""
@@ -98,13 +97,12 @@ def browser_app(target, *args, **kwargs):
     conn = DummyConnection()
     p = Page(conn, "kaeru-session-001", loop)
     
-    # ✨ ClientStorageの読み書きメソッドがクラッシュするのを防ぐため、Page側の通信処理をダミーに差し替え
-    def dummy_invoke(method_name, args):
+    # ✨ *args, **kwargs を指定することで、wait_for_result 等のどんな引数が飛んできても完全に受け流します
+    def dummy_invoke(method_name, args=None, *vargs, **vkwargs):
         return DummyInvokeResult()
     p._invoke_method = dummy_invoke
     
-    # 非同期版も同様にパッチを当てる
-    async def dummy_invoke_async(method_name, args):
+    async def dummy_invoke_async(method_name, args=None, *vargs, **vkwargs):
         return DummyInvokeResult()
     p._invoke_method_async = dummy_invoke_async
     
