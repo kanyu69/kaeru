@@ -1,17 +1,31 @@
 (function() {
     console.log("Flet Bootloader Initializing...");
     
-    // 読込中画面の作成
+    // 1. ローディング画面の作成
     const loader = document.createElement('div');
     loader.id = "flet-loader";
-    loader.style = "position:absolute; top:0; left:0; width:100%; height:100%; background:#262626; display:flex; justify-content:center; align-items:center; color:#aaaaaa; font-family:sans-serif; z-index:999;";
-    loader.innerHTML = '<div><div style="border:4px solid rgba(255,255,255,0.1); width:36px; height:36px; border-radius:50%; border-left-color:#339966; animation:spin 1s linear infinite; margin:0 auto 20px;"></div><div id="load-text">Python環境を起動中...</div></div>';
+    loader.style.position = "absolute";
+    loader.style.top = "0";
+    loader.style.left = "0";
+    loader.style.width = "100%";
+    loader.style.height = "100%";
+    loader.style.backgroundColor = "#262626";
+    loader.style.display = "flex";
+    loader.style.justifyContent = "center";
+    loader.style.alignItems = "center";
+    loader.style.color = "#aaaaaa";
+    loader.style.fontFamily = "sans-serif";
+    loader.style.zIndex = "999";
+    loader.innerHTML = '<div><div id="flet-spinner" style="border:4px solid rgba(255,255,255,0.1); width:36px; height:36px; border-radius:50%; border-left-color:#339966; margin:0 auto 20px;"></div><div id="load-text">Python環境を起動中...</div></div>';
     document.body.appendChild(loader);
     
-    const style = document.createElement('style');
-    style.innerHTML = "@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }";
-    document.head.appendChild(style);
+    // アニメーション用スタイルの追加（エラーの原因だった箇所を安全に修正）
+    const styleRef = document.createElement('style');
+    styleRef.type = 'text/css';
+    styleRef.innerHTML = "@keyframes flet-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } } #flet-spinner { animation: flet-spin 1s linear infinite; }";
+    document.head.appendChild(styleRef);
 
+    // 2. Pyodideスクリプトの動的読み込み
     const script = document.createElement('script');
     script.src = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js";
     
@@ -26,85 +40,50 @@
             
             text.innerText = "メインプログラムを読み込み中...";
             const response = await fetch('./flet_main.py');
-            if (!response.ok) throw new Error(`flet_main.py が見つかりません (Status: ${response.status})`);
+            if (!response.ok) throw new Error("flet_main.py が見つかりません");
             const pythonCode = await response.text();
             
             // Fletとしてインポートできるように偽装
-            pyodide.runPython(`
-import sys
-import flet_core
-sys.modules['flet'] = flet_core
-`);
+            pyodide.runPython("import sys\nimport flet_core\nsys.modules['flet'] = flet_core");
 
-            // ✨【超重要】Python側のpage.add()やpage.update()が呼ばれたときに、
-            // HTMLの要素（#flet-app-container）へダイレクトに文字やUIを描画するシステムを注入
+            // Python側の画面更新トリガーをJavaScriptでキャッチするモジュール
             pyodide.registerJsModule("js_renderer", {
-                renderPage: (pageDataJson) => {
-                    // Pythonから送られてきた画面データをJavaScriptで受け取る
+                renderPage: () => {
                     const container = document.getElementById("flet-app-container");
                     if (container) {
-                        // ローディング画面を完全に消去して描画スイッチをONにする
                         if (loader) loader.style.display = "none";
-                        
-                        // 初回描画時に簡易的なHTML要素としてFletのレイアウトをマウント
-                        // (FletのWebコンポーネント構造を擬似的に再現します)
                         if (!container.hasChildNodes()) {
-                            container.innerHTML = `<div style="width:100%; height:100%; background-color:#262626; display:flex; flex-direction:column; justify-content:space-between; color:white;">
-                                <div id="app-main-content" style="flex:1; overflow-y:auto; position:relative;"></div>
-                                <div id="app-bottom-bar" style="height:80px;"></div>
-                            </div>`;
-                            console.log("HTML Container successfully mounted!");
+                            container.innerHTML = '<div style="width:100%; height:100%; background-color:#262626; display:flex; flex-direction:column; justify-content:space-between; color:white;"><div id="app-main-content" style="flex:1; overflow-y:auto; position:relative;"></div><div id="app-bottom-bar" style="height:80px;"></div></div>';
+                            console.log("HTML Container mounted.");
                         }
                     }
                 }
             });
 
-            // app関数の挙動をブラウザ（HTML描画）用に上書き
+            // app関数の挙動をブラウザ環境用にオーバーライド
             pyodide.runPython(`
 def browser_app(target, *args, **kwargs):
     from flet_core.page import Page
     import js_renderer
-    import json
-    
-    # ダミーのページオブジェクトを生成
     p = Page(None, "kaeru-app")
     
-    # 本来のupdate関数をインターセプトしてJavaScriptに画面描画を通知させる
-    original_update = p.update
     def web_update():
-        # JavaScript側の描画トリガーを叩く
-        js_renderer.renderPage(json.dumps({"status": "ready"}))
+        js_renderer.renderPage()
     p.update = web_update
     
-    # アプリのメイン関数（main）を実行
     target(p)
-    # 最初のUI構築後に明示的にアップデートを発火
     p.update()
 
 flet_core.app = browser_app
 `);
 
-            // メインのPythonコード（flet_main.py）を実行
-            pyodide.runPython(pythonCode);
-            console.log("Flet App Launched Successfully.");
-
-        } catch (err) {
-            console.error(err);
-            text.innerHTML = `<span style="color:#ff6666; font-weight:bold;">起動エラー</span><br><small style="color:#ccc;">${err.message}</small>`;
-        }
-    };
-    document.head.appendChild(script);
-})();`);
-
             // メインのPythonコードを実行
             pyodide.runPython(pythonCode);
-            
-            // 正常に終了したらローディング画面を消し去る
-            loader.style.display = "none";
             console.log("Flet App Launched Successfully.");
+
         } catch (err) {
             console.error(err);
-            text.innerHTML = `<span style="color:#ff6666; font-weight:bold;">起動エラー</span><br><small style="color:#ccc;">${err.message}</small>`;
+            text.innerHTML = '<span style="color:#ff6666; font-weight:bold;">起動エラー</span><br><small style="color:#ccc;">' + err.message + '</small>';
         }
     };
     document.head.appendChild(script);
