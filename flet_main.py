@@ -39,6 +39,10 @@ class RoundButton(ft.Container):
 class BottomMenuBar(ft.Container):
     def __init__(self, current_screen, on_change_screen, lang):
         super().__init__()
+        # ✨ 安全対策: もし言語が ja か en 以外（nullなど）なら、強制的に日本語 'ja' を使う
+        if lang not in LANG_TEXTS:
+            lang = "ja"
+            
         t = LANG_TEXTS[lang]
         def make_nav_btn(icon, text, target):
             is_active = current_screen == target
@@ -63,6 +67,10 @@ class BottomMenuBar(ft.Container):
         self.padding = ft.padding.symmetric(horizontal=10)
 
 def get_main_content(lang):
+    # ✨ 安全対策: もし言語が ja か en 以外（nullなど）なら、強制的に日本語 'ja' を使う
+    if lang not in LANG_TEXTS:
+        lang = "ja"
+        
     t = LANG_TEXTS[lang]
     return ft.Stack([
         ft.Image(src="data/images/top.png", fit=ft.ImageFit.COVER, expand=True),
@@ -74,6 +82,7 @@ def get_main_content(lang):
     ], expand=True)
 
 def get_itemtype_content(lang):
+    if lang not in LANG_TEXTS: lang = "ja"
     t = LANG_TEXTS[lang]
     return ft.Container(bgcolor=LIGHT_GRAY, alignment=ft.alignment.center, content=ft.Text(f"{t['title_list']} ({t['ready']})", size=20, color="#262626", font_family=FONT_FAMILY))
 
@@ -81,10 +90,12 @@ def get_scan_content(lang):
     return ft.Container(bgcolor=ft.colors.BLACK, alignment=ft.alignment.center, content=ft.Text("Camera / Barcode Scan", size=20, color=ft.colors.WHITE, font_family=FONT_FAMILY))
 
 def get_history_content(lang):
+    if lang not in LANG_TEXTS: lang = "ja"
     t = LANG_TEXTS[lang]
     return ft.Container(bgcolor=LIGHT_GRAY, alignment=ft.alignment.center, content=ft.Text(f"{t['title_history']} ({t['ready']})", size=20, color="#262626", font_family=FONT_FAMILY))
 
 def get_settings_content(lang, on_toggle_lang):
+    if lang not in LANG_TEXTS: lang = "ja"
     t = LANG_TEXTS[lang]
     return ft.Container(bgcolor=LIGHT_GRAY, content=ft.Column([
         ft.Container(content=ft.Text(t["title_settings"], color=ft.colors.WHITE, size=20, weight=ft.FontWeight.BOLD, font_family=FONT_FAMILY), bgcolor=BRAND_GREEN, height=65, alignment=ft.alignment.center),
@@ -102,19 +113,24 @@ def get_settings_content(lang, on_toggle_lang):
     ], spacing=0), expand=True)
 
 def main(page: ft.Page):
-    # ✨ ブラウザで確実に最大表示させるための設定を追加
     page.title = "Boycott App"
     page.padding = 0
     page.window_width = 400
     page.window_height = 800
     
     saved_lang = page.client_storage.get("user_lang") or "ja"
+    if saved_lang not in LANG_TEXTS:
+        saved_lang = "ja"
+        
     state = {"current_screen": "main", "lang": saved_lang}
     main_content_area = ft.Container(expand=True)
 
     def refresh_ui():
         target = state["current_screen"]
         lang = state["lang"]
+        if lang not in LANG_TEXTS:
+            lang = "ja"
+            
         if target == "main": main_content_area.content = get_main_content(lang)
         elif target == "itemtype_widget": main_content_area.content = get_itemtype_content(lang)
         elif target == "scan_widget": main_content_area.content = get_scan_content(lang)
@@ -135,8 +151,6 @@ def main(page: ft.Page):
         refresh_ui()
 
     refresh_ui()
-    # ✨ 縦横に引き伸ばして画面に配置
     page.add(ft.Column([main_content_area, BottomMenuBar(current_screen="main", on_change_screen=change_screen, lang=state["lang"])], spacing=0, expand=True))
 
-# 後方の余計なインデントによるエラーを防ぐため末尾はスッキリさせます
 ft.app(target=main)
