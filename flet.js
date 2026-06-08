@@ -43,14 +43,14 @@
             if (!response.ok) throw new Error("flet_main.py が見つかりません");
             let pythonCode = await response.text();
             
-            // Pythonコード内の末尾の起動呼出を安全に無効化（JSコメントが混入しないよう修正）
-            pythonCode = pythonCode.replace(/ft\.app\(target\s*=\s*main\)/g, "# app target main");
-            pythonCode = pythonCode.replace(/ft\.app\(main\)/g, "# app main");
+            // flet_main.py の末尾にある ft.app の呼び出しコードを安全に消去
+            pythonCode = pythonCode.replace(/ft\.app\(target\s*=\s*main\)/g, "# remote target");
+            pythonCode = pythonCode.replace(/ft\.app\(main\)/g, "# remote main");
             
-            // Fletとしてインポートできるように偽装
+            // Fletとしてインポートできるように環境を設定
             pyodide.runPython("import sys\nimport flet_core\nsys.modules['flet'] = flet_core");
 
-            // Python側の画面更新が走ったら、ローディングを消してHTMLのコンテナを表示する
+            // Python側の画面更新が走ったら、ローディングを消してHTMLを表示する橋渡し
             pyodide.registerJsModule("js_renderer", {
                 renderPage: () => {
                     const container = document.getElementById("flet-app-container");
@@ -64,10 +64,10 @@
                 }
             });
 
-            // メインコードを環境内に読み込ませる
+            // 1. まず純粋な flet_main.py の中身を Python 側に読み込ませる
             pyodide.runPython(pythonCode);
 
-            // JavaScriptから直接Pythonの main() 関数を安全なダミー環境とともに実行
+            // 2. 次に、FletのPage環境を作って、読み込んである main() 関数を実行する
             pyodide.runPython(`
 import asyncio
 from flet_core.page import Page
@@ -105,9 +105,8 @@ p.update = web_update
 if 'main' in globals():
     globals()['main'](p)
     p.update()
-    print("Flet main() forced successfully.")
 else:
-    print("Error: main() function not found.")
+    print("Error: main() not found.")
 `);
 
             console.log("Flet App Launched Successfully.");
