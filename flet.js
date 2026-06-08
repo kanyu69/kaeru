@@ -41,12 +41,16 @@
             text.innerText = "メインプログラムを読み込み中...";
             const response = await fetch('./flet_main.py');
             if (!response.ok) throw new Error("flet_main.py が見つかりません");
-            const pythonCode = await response.text();
+            let pythonCode = await response.text();
+            
+            // Pythonコード内の末尾の起動呼出を安全に無効化（JSコメントが混入しないよう修正）
+            pythonCode = pythonCode.replace(/ft\.app\(target\s*=\s*main\)/g, "# app target main");
+            pythonCode = pythonCode.replace(/ft\.app\(main\)/g, "# app main");
             
             // Fletとしてインポートできるように偽装
             pyodide.runPython("import sys\nimport flet_core\nsys.modules['flet'] = flet_core");
 
-            // Python側の画面更新トリガーをJavaScriptでキャッチするモジュール
+            // Python側の画面更新が走ったら、ローディングを消してHTMLのコンテナを表示する
             pyodide.registerJsModule("js_renderer", {
                 renderPage: () => {
                     const container = document.getElementById("flet-app-container");
@@ -60,60 +64,52 @@
                 }
             });
 
-            // app関数の挙動をブラウザ環境用にオーバーライド（JSONDecodeError 厳密対策版）
-            pyodide.runPython(`
-def browser_app(target, *args, **kwargs):
-    from flet_core.page import Page
-    import js_renderer
-    import asyncio
-    
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
-    class DummyPubSubHub:
-        def __init__(self): pass
-            
-    class DummyConnection:
-        def __init__(self):
-            self.pubsubhub = DummyPubSubHub()
-            self.page_url = "http://localhost"
-            
-        def send_command(self, session_id, command):
-            # ✨ 2連続の json.loads() を100%エラーなく通過させる厳密な3重シリアライズ文字列
-            return '"\\\\\\"null\\\\\\""'
-            
-        def send_command_async(self, session_id, command):
-            async def dummy_async():
-                return '"\\\\\\"null\\\\\\""'
-            return dummy_async()
-            
-    conn = DummyConnection()
-    p = Page(conn, "kaeru-session-001", loop)
-    
-    # ✨ どのような方法で呼び出されても、この厳密な文字列を返してパースを突破させます
-    def dummy_invoke(method_name, args=None, *vargs, **vkwargs):
-        return '"\\\\\\"null\\\\\\""'
-    p._invoke_method = dummy_invoke
-    
-    async def dummy_invoke_async(method_name, args=None, *vargs, **vkwargs):
-        return '"\\\\\\"null\\\\\\""'
-    p._invoke_method_async = dummy_invoke_async
-    
-    def web_update():
-        js_renderer.renderPage()
-    p.update = web_update
-    
-    target(p)
-    p.update()
+            // メインコードを環境内に読み込ませる
+            pyodide.runPython(pythonCode);
 
-flet_core.app = browser_app
+            // JavaScriptから直接Pythonの main() 関数を安全なダミー環境とともに実行
+            pyodide.runPython(`
+import asyncio
+from flet_core.page import Page
+import js_renderer
+
+try:
+    loop = asyncio.get_running_loop()
+except RuntimeError:
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+class DummyPubSubHub:
+    def __init__(self): pass
+
+class DummyConnection:
+    def __init__(self):
+        self.pubsubhub = DummyPubSubHub()
+        self.page_url = "http://localhost"
+    def send_command(self, session_id, command): return '"\\\\\\"null\\\\\\""'
+    def send_command_async(self, session_id, command):
+        async def dummy_async(): return '"\\\\\\"null\\\\\\""'
+        return dummy_async()
+
+conn = DummyConnection()
+p = Page(conn, "kaeru-session-001", loop)
+
+def dummy_invoke(method_name, args=None, *vargs, **vkwargs): return '"\\\\\\"null\\\\\\""'
+p._invoke_method = dummy_invoke
+p._invoke_method_async = lambda *a, **k: asyncio.sleep(0, '"\\\\\\"null\\\\\\""')
+
+def web_update():
+    js_renderer.renderPage()
+p.update = web_update
+
+if 'main' in globals():
+    globals()['main'](p)
+    p.update()
+    print("Flet main() forced successfully.")
+else:
+    print("Error: main() function not found.")
 `);
 
-            // メインのPythonコードを実行
-            pyodide.runPython(pythonCode);
             console.log("Flet App Launched Successfully.");
 
         } catch (err) {
