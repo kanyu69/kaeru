@@ -1,123 +1,154 @@
-(function() {
-    console.log("Flet Bootloader Initializing...");
-    
-    // 1. ローディング画面の作成
-    const loader = document.createElement('div');
-    loader.id = "flet-loader";
-    loader.style.position = "absolute";
-    loader.style.top = "0";
-    loader.style.left = "0";
-    loader.style.width = "100%";
-    loader.style.height = "100%";
-    loader.style.backgroundColor = "#262626";
-    loader.style.display = "flex";
-    loader.style.justifyContent = "center";
-    loader.style.alignItems = "center";
-    loader.style.color = "#aaaaaa";
-    loader.style.fontFamily = "sans-serif";
-    loader.style.zIndex = "999";
-    loader.innerHTML = '<div><div id="flet-spinner" style="border:4px solid rgba(255,255,255,0.1); width:36px; height:36px; border-radius:50%; border-left-color:#339966; margin:0 auto 20px;"></div><div id="load-text">Python環境を起動中...</div></div>';
-    document.body.appendChild(loader);
-    
-    // アニメーション用スタイルの追加
-    const styleRef = document.createElement('style');
-    styleRef.type = 'text/css';
-    styleRef.innerHTML = "@keyframes flet-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } } #flet-spinner { animation: flet-spin 1s linear infinite; }";
-    document.head.appendChild(styleRef);
+import flet as ft
 
-    // 2. Pyodideスクリプトの動的読み込み
-    const script = document.createElement('script');
-    script.src = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js";
-    
-    script.onload = async () => {
-        const text = document.getElementById('load-text');
-        try {
-            text.innerText = "パッケージを準備中...";
-            let pyodide = await loadPyodide();
-            await pyodide.loadPackage("micropip");
-            const micropip = pyodide.pyimport("micropip");
-            await micropip.install("flet-core");
+BRAND_GREEN = "#339966"
+DARK_BG = "#262626"
+LIGHT_GRAY = "#F5F7FA"
+FONT_FAMILY = "UD"
+
+LANG_TEXTS = {
+    "ja": {
+        "title_main": "ホーム", "title_list": "リスト", "title_history": "履歴", "title_settings": "設定",
+        "important_notice": "【重要】新機能が追加されました！", "submit_info": "ボイコット商品情報をお寄せください",
+        "input_area": "にゅうりょくえりあ (TOP)", "lang_setting": "言語設定", "lang_desc": "つかう ことばを えらびます", "ready": "準備中"
+    },
+    "en": {
+        "title_main": "TOP", "title_list": "List", "title_history": "History", "title_settings": "Settings",
+        "important_notice": "[Notice] New features have been added!", "submit_info": "Please send us boycott product info",
+        "input_area": "Input Area (TOP)", "lang_setting": "Language", "lang_desc": "Choose your language", "ready": "Under Construction"
+    }
+}
+
+class RoundButton(ft.Container):
+    def __init__(self, icon_source, text_text="", on_click=None):
+        super().__init__()
+        if text_text:
+            self.content = ft.Column([
+                ft.Image(src=icon_source, height=28, fit=ft.ImageFit.CONTAIN),
+                ft.Text(text_text, size=12, weight=ft.FontWeight.BOLD, color=ft.colors.WHITE, font_family=FONT_FAMILY),
+            ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=1)
+            self.padding = ft.padding.only(top=12, bottom=12)
+        else:
+            self.content = ft.Image(src=icon_source, fit=ft.ImageFit.CONTAIN)
+            self.padding = ft.padding.only(top=6, bottom=6)
+        self.bgcolor = BRAND_GREEN
+        self.shape = ft.BoxShape.CIRCLE
+        self.width = 70
+        self.height = 70
+        self.on_click = on_click
+
+class BottomMenuBar(ft.Container):
+    def __init__(self, current_screen, on_change_screen, lang):
+        super().__init__()
+        if lang not in LANG_TEXTS:
+            lang = "ja"
             
-            text.innerText = "メインプログラムを読み込み中...";
-            const response = await fetch('./flet_main.py');
-            if (!response.ok) throw new Error("flet_main.py が見つかりません");
-            let pythonCode = await response.text();
+        t = LANG_TEXTS[lang]
+        def make_nav_btn(icon, text, target):
+            is_active = current_screen == target
+            return ft.GestureDetector(
+                content=ft.Column([
+                    ft.Image(src=icon, height=28, fit=ft.ImageFit.CONTAIN, opacity=1.0 if is_active else 0.5),
+                    ft.Text(text, size=12, font_family=FONT_FAMILY, color=ft.colors.WHITE if is_active else "#999999", weight=ft.FontWeight.BOLD if is_active else ft.FontWeight.NORMAL),
+                ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=2),
+                on_tap=lambda _: on_change_screen(target)
+            )
+        self.content = ft.Row([
+            make_nav_btn("data/images/icon/home.png", t["title_main"], "main"),
+            make_nav_btn("data/images/icon/list.png", t["title_list"], "itemtype_widget"),
+            RoundButton(icon_source="data/images/icon/scan.png", text_text="スキャン", on_click=lambda _: on_change_screen("scan_widget")),
+            make_nav_btn("data/images/icon/history.png", t["title_history"], "history_widget"),
+            make_nav_btn("data/images/icon/set.png", t["title_settings"], "settings_widget"),
+        ], alignment=ft.MainAxisAlignment.SPACE_AROUND, vertical_alignment=ft.CrossAxisAlignment.CENTER)
+        self.bgcolor = DARK_BG
+        self.border_radius = 25
+        self.height = 65
+        self.margin = ft.margin.only(left=10, right=10, bottom=15)
+        self.padding = ft.padding.symmetric(horizontal=10)
+
+def get_main_content(lang):
+    if lang not in LANG_TEXTS:
+        lang = "ja"
+        
+    t = LANG_TEXTS[lang]
+    return ft.Stack([
+        ft.Image(src="data/images/top.png", fit=ft.ImageFit.COVER, expand=True),
+        ft.Container(padding=20, content=ft.Column([
+            ft.Container(content=ft.Text(t["important_notice"], color="#333333", size=14, font_family=FONT_FAMILY), bgcolor=ft.colors.with_opacity(0.5, ft.colors.WHITE), border_radius=15, padding=10, height=80, alignment=ft.alignment.center_left),
+            ft.ElevatedButton(text=t["submit_info"], height=55, width=float("inf"), style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10))),
+            ft.Container(content=ft.Text(t["input_area"], font_family=FONT_FAMILY, color=ft.colors.WHITE), height=200),
+        ], spacing=15))
+    ], expand=True)
+
+def get_itemtype_content(lang):
+    if lang not in LANG_TEXTS: lang = "ja"
+    t = LANG_TEXTS[lang]
+    return ft.Container(bgcolor=LIGHT_GRAY, alignment=ft.alignment.center, content=ft.Text(f"{t['title_list']} ({t['ready']})", size=20, color="#262626", font_family=FONT_FAMILY))
+
+def get_scan_content(lang):
+    return ft.Container(bgcolor=ft.colors.BLACK, alignment=ft.alignment.center, content=ft.Text("Camera / Barcode Scan", size=20, color=ft.colors.WHITE, font_family=FONT_FAMILY))
+
+def get_history_content(lang):
+    if lang not in LANG_TEXTS: lang = "ja"
+    t = LANG_TEXTS[lang]
+    return ft.Container(bgcolor=LIGHT_GRAY, alignment=ft.alignment.center, content=ft.Text(f"{t['title_history']} ({t['ready']})", size=20, color="#262626", font_family=FONT_FAMILY))
+
+def get_settings_content(lang, on_toggle_lang):
+    if lang not in LANG_TEXTS: lang = "ja"
+    t = LANG_TEXTS[lang]
+    return ft.Container(bgcolor=LIGHT_GRAY, content=ft.Column([
+        ft.Container(content=ft.Text(t["title_settings"], color=ft.colors.WHITE, size=20, weight=ft.FontWeight.BOLD, font_family=FONT_FAMILY), bgcolor=BRAND_GREEN, height=65, alignment=ft.alignment.center),
+        ft.Column([
+            ft.Container(bgcolor=ft.colors.WHITE, border_radius=15, padding=20, content=ft.Column([
+                ft.Row([ft.Image(src="data/images/icon/home.png", width=22, height=22), ft.Text(t["lang_setting"], size=17, weight=ft.FontWeight.BOLD, color="#262626", font_family=FONT_FAMILY)], spacing=10),
+                ft.Text(t["lang_desc"], size=12, color="#888888", font_family=FONT_FAMILY),
+                ft.Row([
+                    ft.Text("日本語", size=16, font_family=FONT_FAMILY, weight=ft.FontWeight.BOLD if lang == "ja" else ft.FontWeight.NORMAL, color=BRAND_GREEN if lang == "ja" else "#999999"),
+                    ft.Switch(value=(lang == "en"), active_track_color=BRAND_GREEN, on_change=lambda e: on_toggle_lang(e.control.value)),
+                    ft.Text("English", size=16, font_family=FONT_FAMILY, weight=ft.FontWeight.BOLD if lang == "en" else ft.FontWeight.NORMAL, color=BRAND_GREEN if lang == "en" else "#999999"),
+                ], alignment=ft.MainAxisAlignment.CENTER, spacing=15)
+            ], spacing=10), height=150)
+        ], expand=True, scroll=ft.ScrollMode.AUTO, padding=20)
+    ], spacing=0), expand=True)
+
+def main(page: ft.Page):
+    page.title = "Boycott App"
+    page.padding = 0
+    page.window_width = 400
+    page.window_height = 800
+    
+    saved_lang = page.client_storage.get("user_lang") or "ja"
+    if saved_lang not in LANG_TEXTS:
+        saved_lang = "ja"
+        
+    state = {"current_screen": "main", "lang": saved_lang}
+    main_content_area = ft.Container(expand=True)
+
+    def refresh_ui():
+        target = state["current_screen"]
+        lang = state["lang"]
+        if lang not in LANG_TEXTS:
+            lang = "ja"
             
-            // 末尾の ft.app(target=main) が悪さをするのを防ぐため、コードから削除・無効化する
-            pythonCode = pythonCode.replace(/ft\.app\(target\s*=\s*main\)/g, "# ft.app(target=main)");
-            pythonCode = pythonCode.replace(/ft\.app\(main\)/g, "# ft.app(main)");
-            
-            // Fletとしてインポートできるように偽装
-            pyodide.runPython("import sys\nimport flet_core\nsys.modules['flet'] = flet_core");
+        if target == "main": main_content_area.content = get_main_content(lang)
+        elif target == "itemtype_widget": main_content_area.content = get_itemtype_content(lang)
+        elif target == "scan_widget": main_content_area.content = get_scan_content(lang)
+        elif target == "history_widget": main_content_area.content = get_history_content(lang)
+        elif target == "settings_widget": main_content_area.content = get_settings_content(lang, toggle_language)
+        
+        page.controls[0].controls[1] = BottomMenuBar(current_screen=target, on_change_screen=change_screen, lang=lang)
+        page.update()
 
-            // ✨【重要】Python側の画面更新が走ったら、ローディングを消してHTMLのコンテナを表示する
-            pyodide.registerJsModule("js_renderer", {
-                renderPage: () => {
-                    const container = document.getElementById("flet-app-container");
-                    if (container) {
-                        if (loader) loader.style.display = "none"; // ローディング画面を非表示に！
-                        if (!container.hasChildNodes()) {
-                            container.innerHTML = '<div style="width:100%; height:100%; background-color:#262626; display:flex; flex-direction:column; justify-content:space-between; color:white;"><div id="app-main-content" style="flex:1; overflow-y:auto; position:relative;"></div><div id="app-bottom-bar" style="height:80px;"></div></div>';
-                            console.log("HTML Container mounted.");
-                        }
-                    }
-                }
-            });
+    def change_screen(target_name):
+        state["current_screen"] = target_name
+        refresh_ui()
 
-            // メインコードを環境内に読み込ませる
-            pyodide.runPython(pythonCode);
+    def toggle_language(is_english):
+        new_lang = "en" if is_english else "ja"
+        state["lang"] = new_lang
+        page.client_storage.set("user_lang", new_lang)
+        refresh_ui()
 
-            // ✨ JavaScriptから直接Pythonの main() 関数を安全なダミー環境とともに叩き起こす
-            pyodide.runPython(`
-import asyncio
-from flet_core.page import Page
-import js_renderer
+    refresh_ui()
+    page.add(ft.Column([main_content_area, BottomMenuBar(current_screen="main", on_change_screen=change_screen, lang=state["lang"])], spacing=0, expand=True))
 
-try:
-    loop = asyncio.get_running_loop()
-except RuntimeError:
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-class DummyPubSubHub:
-    def __init__(self): pass
-
-class DummyConnection:
-    def __init__(self):
-        self.pubsubhub = DummyPubSubHub()
-        self.page_url = "http://localhost"
-    def send_command(self, session_id, command): return '"\\\\\\"null\\\\\\""'
-    def send_command_async(self, session_id, command):
-        async def dummy_async(): return '"\\\\\\"null\\\\\\""'
-        return dummy_async()
-
-conn = DummyConnection()
-p = Page(conn, "kaeru-session-001", loop)
-
-def dummy_invoke(method_name, args=None, *vargs, **vkwargs): return '"\\\\\\"null\\\\\\""'
-p._invoke_method = dummy_invoke
-p._invoke_method_async = dummy_invoke_async = lambda *a, **k: asyncio.sleep(0, '"\\\\\\"null\\\\\\""')
-
-# 画面更新時にJSのレンダラーを呼ぶ
-def web_update():
-    js_renderer.renderPage()
-p.update = web_update
-
-# 読み込まれている main 関数をここで直接実行！
-if 'main' in globals():
-    globals()['main'](p)
-    p.update()
-    print("Flet main() forced successfully.")
-else:
-    print("Error: main() function not found in script.")
-`);
-
-            console.log("Flet App Launched Successfully.");
-
-        } catch (err) {
-            console.error(err);
-            text.innerHTML = '<span style="color:#ff6666; font-weight:bold;">起動エラー</span><br><small style="color:#ccc;">' + err.message + '</small>';
-        }
-    };
-    document.head.appendChild(script);
-})();
+ft.app(target=main)
