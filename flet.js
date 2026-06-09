@@ -41,16 +41,12 @@
             text.innerText = "メインプログラムを読み込み中...";
             const response = await fetch('./flet_main.py');
             if (!response.ok) throw new Error("flet_main.py が見つかりません");
-            let pythonCode = await response.text();
+            const pythonCode = await response.text();
             
-            // flet_main.py の末尾にある ft.app の呼び出しコードを安全に消去
-            pythonCode = pythonCode.replace(/ft\.app\(target\s*=\s*main\)/g, "# remote target");
-            pythonCode = pythonCode.replace(/ft\.app\(main\)/g, "# remote main");
-            
-            // Fletとしてインポートできるように環境を設定
+            // Flet環境のモジュール偽装
             pyodide.runPython("import sys\nimport flet_core\nsys.modules['flet'] = flet_core");
 
-            // Python側の画面更新が走ったら、ローディングを消してHTMLを表示する橋渡し
+            // Python側からの描画を受け取るJSモジュール
             pyodide.registerJsModule("js_renderer", {
                 renderPage: () => {
                     const container = document.getElementById("flet-app-container");
@@ -64,15 +60,30 @@
                 }
             });
 
-            // 1. まず純粋な flet_main.py の中身を Python 側に読み込ませる
-            pyodide.runPython(pythonCode);
+            // 🌟 事故を防ぐため、fetchしたコードをグローバル変数に「ただの文字列」として安全に格納します
+            pyodide.globals.set("RAW_PYTHON_CODE", pythonCode);
 
-            // 2. 次に、FletのPage環境を作って、読み込んである main() 関数を実行する
+            // 🌟 実行ロジックは100% Python側で完結させ、末尾の ft.app もPython側で安全に無効化して実行します
             pyodide.runPython(`
 import asyncio
+import sys
 from flet_core.page import Page
 import js_renderer
 
+# 1. 読み込んだ flet_main.py の中身を安全に加工（末尾のft.appを確実にコメントアウト）
+lines = RAW_PYTHON_CODE.split('\\n')
+clean_lines = []
+for line in lines:
+    if line.strip().startswith('ft.app('):
+        clean_lines.append('# ' + line)
+    else:
+        clean_lines.append(line)
+executable_code = '\\n'.join(clean_lines)
+
+# 2. 加工したPythonコードだけを実行（これでJSが混ざる余地は0になります）
+exec(executable_code, globals())
+
+# 3. ダミーのブラウザ環境を構築してアプリを起動
 try:
     loop = asyncio.get_running_loop()
 except RuntimeError:
@@ -94,17 +105,15 @@ class DummyConnection:
 conn = DummyConnection()
 p = Page(conn, "kaeru-session-001", loop)
 
-def dummy_invoke(method_name, args=None, *vargs, **vkwargs): return '"\\\\\\"null\\\\\\""'
-p._invoke_method = dummy_invoke
+p._invoke_method = lambda m, a=None, *v, **kw: '"\\\\\\"null\\\\\\""'
 p._invoke_method_async = lambda *a, **k: asyncio.sleep(0, '"\\\\\\"null\\\\\\""')
+p.update = lambda: js_renderer.renderPage()
 
-def web_update():
-    js_renderer.renderPage()
-p.update = web_update
-
+# 4. 読み込まれた main() 関数を強制実行
 if 'main' in globals():
     globals()['main'](p)
     p.update()
+    print("Flet App forced completely.")
 else:
     print("Error: main() not found.")
 `);
