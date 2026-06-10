@@ -122,6 +122,101 @@ def main(page: ft.Page):
         
     state = {"current_screen": "main", "lang": saved_lang}
     main_content_area = ft.Container(expand=True)
+    
+    # 最初は空のボトムバープレースホルダーを用意
+    bottom_bar_container = ft.Container()
+
+    def refresh_ui():
+        target = state["current_screen"]
+        lang = state["lang"]
+        if lang not in LANG_TEXTS:
+            lang = "ja"
+            
+        if target == "main": main_content_area.content = get_main_content(lang)
+        elif target == "itemtype_widget": main_content_area.content = get_itemtype_content(lang)
+        elif target == "scan_widget": main_content_area.content = get_scan_content(lang)
+        elif target == "history_widget": main_content_area.content = get_history_content(lang)
+        elif target == "settings_widget": main_content_area.content = get_settings_content(lang, toggle_language)
+        
+        # ✨ 安全にコンテナの中身を入れ替える方式に修正
+        bottom_bar_container.content = BottomMenuBar(current_screen=target, on_change_screen=change_screen, lang=lang)
+        page.update()
+
+    def change_screen(target_name):
+        state["current_screen"] = target_name
+        refresh_ui()
+
+    def toggle_language(is_english):
+        new_lang = "en" if is_english else "ja"
+        state["lang"] = new_lang
+        page.client_storage.set("user_lang", new_lang)
+        refresh_ui()
+
+    # 最初にベースとなる骨組みを画面に配置
+    page.add(ft.Column([main_content_area, bottom_bar_container], spacing=0, expand=True))
+    
+    # 骨組みができてから中身を描画
+    refresh_ui()
+
+ft.app(target=main)        self.padding = ft.padding.symmetric(horizontal=10)
+
+def get_main_content(lang):
+    if lang not in LANG_TEXTS:
+        lang = "ja"
+        
+    t = LANG_TEXTS[lang]
+    return ft.Stack([
+        ft.Image(src="data/images/top.png", fit=ft.ImageFit.COVER, expand=True),
+        ft.Container(padding=20, content=ft.Column([
+            ft.Container(content=ft.Text(t["important_notice"], color="#333333", size=14, font_family=FONT_FAMILY), bgcolor=ft.colors.with_opacity(0.5, ft.colors.WHITE), border_radius=15, padding=10, height=80, alignment=ft.alignment.center_left),
+            ft.ElevatedButton(text=t["submit_info"], height=55, width=float("inf"), style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10))),
+            ft.Container(content=ft.Text(t["input_area"], font_family=FONT_FAMILY, color=ft.colors.WHITE), height=200),
+        ], spacing=15))
+    ], expand=True)
+
+def get_itemtype_content(lang):
+    if lang not in LANG_TEXTS: lang = "ja"
+    t = LANG_TEXTS[lang]
+    return ft.Container(bgcolor=LIGHT_GRAY, alignment=ft.alignment.center, content=ft.Text(f"{t['title_list']} ({t['ready']})", size=20, color="#262626", font_family=FONT_FAMILY))
+
+def get_scan_content(lang):
+    return ft.Container(bgcolor=ft.colors.BLACK, alignment=ft.alignment.center, content=ft.Text("Camera / Barcode Scan", size=20, color=ft.colors.WHITE, font_family=FONT_FAMILY))
+
+def get_history_content(lang):
+    if lang not in LANG_TEXTS: lang = "ja"
+    t = LANG_TEXTS[lang]
+    return ft.Container(bgcolor=LIGHT_GRAY, alignment=ft.alignment.center, content=ft.Text(f"{t['title_history']} ({t['ready']})", size=20, color="#262626", font_family=FONT_FAMILY))
+
+def get_settings_content(lang, on_toggle_lang):
+    if lang not in LANG_TEXTS: lang = "ja"
+    t = LANG_TEXTS[lang]
+    return ft.Container(bgcolor=LIGHT_GRAY, content=ft.Column([
+        ft.Container(content=ft.Text(t["title_settings"], color=ft.colors.WHITE, size=20, weight=ft.FontWeight.BOLD, font_family=FONT_FAMILY), bgcolor=BRAND_GREEN, height=65, alignment=ft.alignment.center),
+        ft.Column([
+            ft.Container(bgcolor=ft.colors.WHITE, border_radius=15, padding=20, content=ft.Column([
+                ft.Row([ft.Image(src="data/images/icon/home.png", width=22, height=22), ft.Text(t["lang_setting"], size=17, weight=ft.FontWeight.BOLD, color="#262626", font_family=FONT_FAMILY)], spacing=10),
+                ft.Text(t["lang_desc"], size=12, color="#888888", font_family=FONT_FAMILY),
+                ft.Row([
+                    ft.Text("日本語", size=16, font_family=FONT_FAMILY, weight=ft.FontWeight.BOLD if lang == "ja" else ft.FontWeight.NORMAL, color=BRAND_GREEN if lang == "ja" else "#999999"),
+                    ft.Switch(value=(lang == "en"), active_track_color=BRAND_GREEN, on_change=lambda e: on_toggle_lang(e.control.value)),
+                    ft.Text("English", size=16, font_family=FONT_FAMILY, weight=ft.FontWeight.BOLD if lang == "en" else ft.FontWeight.NORMAL, color=BRAND_GREEN if lang == "en" else "#999999"),
+                ], alignment=ft.MainAxisAlignment.CENTER, spacing=15)
+            ], spacing=10), height=150)
+        ], expand=True, scroll=ft.ScrollMode.AUTO, padding=20)
+    ], spacing=0), expand=True)
+
+def main(page: ft.Page):
+    page.title = "Boycott App"
+    page.padding = 0
+    page.window_width = 400
+    page.window_height = 800
+    
+    saved_lang = page.client_storage.get("user_lang") or "ja"
+    if saved_lang not in LANG_TEXTS:
+        saved_lang = "ja"
+        
+    state = {"current_screen": "main", "lang": saved_lang}
+    main_content_area = ft.Container(expand=True)
 
     def refresh_ui():
         target = state["current_screen"]
