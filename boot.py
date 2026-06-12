@@ -3,16 +3,18 @@ import sys
 import types
 import js_renderer
 
-lines = RAW_PYTHON_CODE.split('\n')
-clean_lines = []
-for line in lines:
-    stripped = line.strip()
-    if stripped.startswith('ft.app(') or stripped.startswith('ft.app_async('):
-        clean_lines.append('# ' + line)
-    else:
-        clean_lines.append(line)
-executable_code = '\n'.join(clean_lines)
-exec(executable_code, globals())
+# flet_main.py を別ファイルとして pyodide の仮想FSに書き出してインポート
+import os
+with open('/tmp/flet_main_app.py', 'w') as f:
+    lines = RAW_PYTHON_CODE.split('\n')
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith('ft.app(') or stripped.startswith('ft.app_async('):
+            f.write('# ' + line + '\n')
+        else:
+            f.write(line + '\n')
+
+sys.path.insert(0, '/tmp')
 
 _storage_dict = {}
 
@@ -64,6 +66,77 @@ class MockPage:
         self.on_route_change = None
         self.on_view_pop = None
         self.on_keyboard_event = None
+        self.on_resize = None
+        self.on_connect = None
+        self.on_disconnect = None
+        self.on_close = None
+        self.theme = None
+        self.dark_theme = None
+        self.rtl = False
+        self.width = 400
+        self.height = 800
+        self.client_storage = DummyClientStorage()
+        self.session = DummySession()
+
+    def update(self):
+        try:
+            js_renderer.renderPage()
+        except Exception as ex:
+            print("renderPage warning: " + str(ex))
+
+    def add(self, *controls):
+        for c in controls:
+            self.controls.append(c)
+
+    def remove(self, *controls):
+        for c in controls:
+            if c in self.controls:
+                self.controls.remove(c)
+
+    def go(self, route):
+        self.route = route
+
+    def get_upload_url(self, *a, **k):
+        return ""
+
+    def set_clipboard(self, value):
+        pass
+
+    def launch_url(self, url, *a, **k):
+        pass
+
+    def show_snack_bar(self, snack_bar):
+        self.snack_bar = snack_bar
+
+    def close_dialog(self):
+        self.dialog = None
+
+    def open_dialog(self, dialog):
+        self.dialog = dialog
+
+    def show_bottom_sheet(self, bottom_sheet):
+        self.bottom_sheet = bottom_sheet
+
+    def close_bottom_sheet(self):
+        self.bottom_sheet = None
+
+import importlib
+app_module = importlib.import_module('flet_main_app')
+
+p = MockPage()
+
+if hasattr(app_module, 'main'):
+    try:
+        app_module.main(p)
+        print("main() completed")
+    except Exception as e:
+        print("main() error: " + str(e))
+        import traceback
+        traceback.print_exc()
+    p.update()
+    print("Flet App launched.")
+else:
+    print("Error: main() not found")        self.on_keyboard_event = None
         self.on_resize = None
         self.on_connect = None
         self.on_disconnect = None
