@@ -3,7 +3,6 @@ import sys
 import types
 import js_renderer
 
-# ft.app() を無効化して flet_main.py を実行
 lines = RAW_PYTHON_CODE.split('\n')
 clean_lines = []
 for line in lines:
@@ -15,7 +14,6 @@ for line in lines:
 executable_code = '\n'.join(clean_lines)
 exec(executable_code, globals())
 
-# --- client_storage モック ---
 _storage_dict = {}
 
 class DummyClientStorage:
@@ -28,7 +26,6 @@ class DummyClientStorage:
     def contains_key(self, key):
         return key in _storage_dict
 
-# --- session モック ---
 _session_dict = {}
 
 class DummySession:
@@ -41,29 +38,100 @@ class DummySession:
     def contains_key(self, key):
         return key in _session_dict
 
-# --- send_commands 戻り値モック ---
-class DummyCommandResult:
+class MockPage:
     def __init__(self):
-        self.results = []
+        self.title = ""
+        self.padding = 0
+        self.spacing = 0
+        self.bgcolor = None
+        self.theme_mode = None
+        self.fonts = {}
+        self.horizontal_alignment = None
+        self.vertical_alignment = None
+        self.scroll = None
+        self.window_width = 400
+        self.window_height = 800
+        self.controls = []
+        self.overlay = []
+        self.views = []
+        self.route = "/"
+        self.snack_bar = None
+        self.dialog = None
+        self.bottom_sheet = None
+        self.navigation_bar = None
+        self.appbar = None
+        self.floating_action_button = None
+        self.on_route_change = None
+        self.on_view_pop = None
+        self.on_keyboard_event = None
+        self.on_resize = None
+        self.on_connect = None
+        self.on_disconnect = None
+        self.on_close = None
+        self.theme = None
+        self.dark_theme = None
+        self.rtl = False
+        self.width = 400
+        self.height = 800
+        self.client_storage = DummyClientStorage()
+        self.session = DummySession()
 
-# --- Connection モック ---
-class DummyConnection:
-    def __init__(self):
-        self.page_url = "http://localhost"
-        self.pubsubhub = types.SimpleNamespace(
-            subscribe=lambda *a, **k: None,
-            unsubscribe=lambda *a, **k: None,
-            send_message=lambda *a, **k: None,
-        )
+    def update(self):
+        try:
+            js_renderer.renderPage()
+        except Exception as ex:
+            print("renderPage warning: " + str(ex))
 
-    def send_command(self, session_id, command):
-        return '"null"'
+    def add(self, *controls):
+        for c in controls:
+            self.controls.append(c)
 
-    def send_commands(self, session_id, commands):
-        return DummyCommandResult()
+    def remove(self, *controls):
+        for c in controls:
+            if c in self.controls:
+                self.controls.remove(c)
 
-    async def send_command_async(self, session_id, command):
-        return '"null"'
+    def go(self, route):
+        self.route = route
+
+    def get_upload_url(self, *a, **k):
+        return ""
+
+    def set_clipboard(self, value):
+        pass
+
+    def launch_url(self, url, *a, **k):
+        pass
+
+    def show_snack_bar(self, snack_bar):
+        self.snack_bar = snack_bar
+
+    def close_dialog(self):
+        self.dialog = None
+
+    def open_dialog(self, dialog):
+        self.dialog = dialog
+
+    def show_bottom_sheet(self, bottom_sheet):
+        self.bottom_sheet = bottom_sheet
+
+    def close_bottom_sheet(self):
+        self.bottom_sheet = None
+
+p = MockPage()
+
+if 'main' in globals():
+    try:
+        globals()['main'](p)
+        print("main() completed")
+    except Exception as e:
+        print("main() error: " + str(e))
+        import traceback
+        traceback.print_exc()
+    p.update()
+    print("Flet App launched.")
+else:
+    print("Error: main() not found")        return '"null"'
 
     async def send_commands_async(self, session_id, commands):
         return DummyCommandResult()
