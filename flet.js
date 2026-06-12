@@ -49,11 +49,12 @@
                 }
             });
 
-            // flet_main.py をPyodide仮想FSに書き込む
+            // 両ファイルを仮想FSに書き込む
             pyodide.FS.writeFile("/tmp/flet_main_app.py", pythonCode);
+            pyodide.FS.writeFile("/tmp/boot_runner.py", bootCode);
 
-            // boot.py を実行
-            pyodide.runPython(bootCode);
+            // 固定の1行だけ runPython で実行（文字列混入の余地ゼロ）
+            pyodide.runPython("import runpy; runpy.run_path('/tmp/boot_runner.py', run_name='__main__')");
 
             console.log("Flet App Launched Successfully.");
 
