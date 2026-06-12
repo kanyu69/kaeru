@@ -35,10 +35,8 @@
             const pythonCode = await mainRes.text();
             const bootCode = await bootRes.text();
 
-            // flet = flet_core として登録
             pyodide.runPython("import sys, flet_core; sys.modules['flet'] = flet_core");
 
-            // JS側レンダラー登録
             pyodide.registerJsModule("js_renderer", {
                 renderPage: () => {
                     const container = document.getElementById("flet-app-container");
@@ -46,17 +44,15 @@
                         loader.style.display = "none";
                         if (!container.hasChildNodes()) {
                             container.innerHTML = '<div style="width:100%;height:100%;background-color:#262626;display:flex;flex-direction:column;justify-content:space-between;color:white;"><div id="app-main-content" style="flex:1;overflow-y:auto;position:relative;"></div><div id="app-bottom-bar" style="height:80px;"></div></div>';
-                            console.log("HTML Container mounted.");
                         }
                     }
                 }
             });
 
-            // ★ flet_main.py を仮想FSに直接書き込む（runPythonには渡さない）
-            pyodide.FS.writeFile('/tmp/flet_main_app.py', pythonCode, { encoding: 'utf8' });
-            console.log("flet_main.py written to /tmp/flet_main_app.py");
+            // flet_main.py をPyodide仮想FSに書き込む
+            pyodide.FS.writeFile("/tmp/flet_main_app.py", pythonCode);
 
-            // ★ boot.py だけを runPython で実行（flet_main.pyの中身は混入しない）
+            // boot.py を実行
             pyodide.runPython(bootCode);
 
             console.log("Flet App Launched Successfully.");
@@ -64,11 +60,6 @@
         } catch (err) {
             console.error(err);
             text.innerHTML = '<span style="color:#ff6666;font-weight:bold;">起動エラー</span><br><small style="color:#ccc;">' + err.message + '</small>';
-        }
-    };
-
-    document.head.appendChild(script);
-})();            text.innerHTML = '<span style="color:#ff6666;font-weight:bold;">起動エラー</span><br><small style="color:#ccc;">' + err.message + '</small>';
         }
     };
 
