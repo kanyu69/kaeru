@@ -77,6 +77,87 @@ except RuntimeError:
 
 # --- Page 初期化 ---
 conn = DummyConnection()
+
+from flet_core.page import Page
+p = Page(conn, "kaeru-session-001", loop)
+
+# client_storage と session はプロパティ(setter なし)なので
+# インスタンスの __dict__ に直接書き込んでプロパティを隠蔽する
+dummy_storage = DummyClientStorage()
+dummy_session = DummySession()
+object.__setattr__(p, '_Page__client_storage', dummy_storage)
+object.__setattr__(p, '_Page__session', dummy_session)
+
+# __dict__ に直接差し込む（上記で届かない場合の保険）
+try:
+    p.__dict__['client_storage'] = dummy_storage
+except Exception:
+    pass
+try:
+    p.__dict__['session'] = dummy_session
+except Exception:
+    pass
+
+# プロパティ自体をクラスレベルで差し替える（最終手段）
+try:
+    Page.client_storage = property(lambda self: dummy_storage)
+    Page.session = property(lambda self: dummy_session)
+    print("Page.client_storage / session: クラスレベルで差し替え成功")
+except Exception as e:
+    print(f"クラスレベル差し替え失敗: {e}")
+
+# update と add を安全版に上書き
+def _safe_update():
+    try:
+        js_renderer.renderPage()
+    except Exception as ex:
+        print(f"renderPage warning: {ex}")
+
+p.update = _safe_update
+
+_original_add = getattr(p, 'add', None)
+def _safe_add(*args):
+    try:
+        if _original_add:
+            _original_add(*args)
+        else:
+            for c in args:
+                p.controls.append(c)
+    except Exception as e:
+        print(f"page.add warning: {e}")
+        for c in args:
+            try:
+                p.controls.append(c)
+            except Exception:
+                pass
+p.add = _safe_add
+
+# --- main() 実行 ---
+if 'main' in globals():
+    try:
+        globals()['main'](p)
+        print("main() 実行完了")
+    except Exception as e:
+        print(f"main() 実行エラー: {e}")
+        import traceback
+        traceback.print_exc()
+    p.update()
+    print("Flet App launched.")
+else:
+    print("Error: main() が見つかりません")        return '"null"'
+
+    async def send_commands_async(self, session_id, commands):
+        return DummyCommandResult()
+
+# --- loop ---
+try:
+    loop = asyncio.get_running_loop()
+except RuntimeError:
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+# --- Page 初期化 ---
+conn = DummyConnection()
 page_ok = False
 
 try:
