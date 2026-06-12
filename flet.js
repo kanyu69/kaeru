@@ -1,68 +1,87 @@
-(function() {
-    console.log("Flet Bootloader Initializing...");
+import asyncio
+import sys
+import types
+import js_renderer
 
-    const loader = document.createElement('div');
-    loader.id = "flet-loader";
-    loader.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;background-color:#262626;display:flex;justify-content:center;align-items:center;color:#aaaaaa;font-family:sans-serif;z-index:999;";
-    loader.innerHTML = '<div><div id="flet-spinner" style="border:4px solid rgba(255,255,255,0.1);width:36px;height:36px;border-radius:50%;border-left-color:#339966;margin:0 auto 20px;"></div><div id="load-text">Python環境を起動中...</div></div>';
-    document.body.appendChild(loader);
+sys.path.insert(0, "/tmp")
 
-    const styleRef = document.createElement('style');
-    styleRef.innerHTML = "@keyframes flet-spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}} #flet-spinner{animation:flet-spin 1s linear infinite;}";
-    document.head.appendChild(styleRef);
+_storage_dict = {}
 
-    const script = document.createElement('script');
-    script.src = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js";
+class DummyClientStorage:
+    def get(self, key): return _storage_dict.get(key, None)
+    def set(self, key, value): _storage_dict[key] = value
+    def remove(self, key): _storage_dict.pop(key, None)
+    def contains_key(self, key): return key in _storage_dict
 
-    script.onload = async () => {
-        const text = document.getElementById('load-text');
-        try {
-            text.innerText = "パッケージを準備中...";
-            let pyodide = await loadPyodide();
-            await pyodide.loadPackage("micropip");
-            const micropip = pyodide.pyimport("micropip");
-            await micropip.install("flet-core");
+_session_dict = {}
 
-            text.innerText = "メインプログラムを読み込み中...";
+class DummySession:
+    def get(self, key): return _session_dict.get(key, None)
+    def set(self, key, value): _session_dict[key] = value
+    def remove(self, key): _session_dict.pop(key, None)
+    def contains_key(self, key): return key in _session_dict
 
-            const [mainRes, bootRes] = await Promise.all([
-                fetch('./flet_main.py'),
-                fetch('./boot.py')
-            ]);
-            if (!mainRes.ok) throw new Error("flet_main.py が見つかりません");
-            if (!bootRes.ok) throw new Error("boot.py が見つかりません");
+class MockPage:
+    def __init__(self):
+        self.title = ""
+        self.padding = 0
+        self.spacing = 0
+        self.bgcolor = None
+        self.theme_mode = None
+        self.fonts = {}
+        self.horizontal_alignment = None
+        self.vertical_alignment = None
+        self.scroll = None
+        self.window_width = 400
+        self.window_height = 800
+        self.controls = []
+        self.overlay = []
+        self.views = []
+        self.route = "/"
+        self.snack_bar = None
+        self.dialog = None
+        self.bottom_sheet = None
+        self.navigation_bar = None
+        self.appbar = None
+        self.floating_action_button = None
+        self.theme = None
+        self.dark_theme = None
+        self.rtl = False
+        self.width = 400
+        self.height = 800
+        self.client_storage = DummyClientStorage()
+        self.session = DummySession()
+    def update(self):
+        try: js_renderer.renderPage()
+        except Exception as ex: print("renderPage warning: " + str(ex))
+    def add(self, *controls):
+        for c in controls: self.controls.append(c)
+    def remove(self, *controls):
+        for c in controls:
+            if c in self.controls: self.controls.remove(c)
+    def go(self, route): self.route = route
+    def get_upload_url(self, *a, **k): return ""
+    def set_clipboard(self, value): pass
+    def launch_url(self, url, *a, **k): pass
+    def show_snack_bar(self, s): self.snack_bar = s
+    def close_dialog(self): self.dialog = None
+    def open_dialog(self, d): self.dialog = d
+    def show_bottom_sheet(self, b): self.bottom_sheet = b
+    def close_bottom_sheet(self): self.bottom_sheet = None
 
-            const pythonCode = await mainRes.text();
-            const bootCode = await bootRes.text();
-
-            pyodide.runPython("import sys, flet_core; sys.modules['flet'] = flet_core");
-
-            pyodide.registerJsModule("js_renderer", {
-                renderPage: () => {
-                    const container = document.getElementById("flet-app-container");
-                    if (container) {
-                        loader.style.display = "none";
-                        if (!container.hasChildNodes()) {
-                            container.innerHTML = '<div style="width:100%;height:100%;background-color:#262626;display:flex;flex-direction:column;justify-content:space-between;color:white;"><div id="app-main-content" style="flex:1;overflow-y:auto;position:relative;"></div><div id="app-bottom-bar" style="height:80px;"></div></div>';
-                        }
-                    }
-                }
-            });
-
-            // 両ファイルを仮想FSに書き込む
-            pyodide.FS.writeFile("/tmp/flet_main_app.py", pythonCode);
-            pyodide.FS.writeFile("/tmp/boot_runner.py", bootCode);
-
-            // 固定の1行だけ runPython で実行（文字列混入の余地ゼロ）
-            pyodide.runPython("import runpy; runpy.run_path('/tmp/boot_runner.py', run_name='__main__')");
-
-            console.log("Flet App Launched Successfully.");
-
-        } catch (err) {
-            console.error(err);
-            text.innerHTML = '<span style="color:#ff6666;font-weight:bold;">起動エラー</span><br><small style="color:#ccc;">' + err.message + '</small>';
-        }
-    };
-
+import importlib
+app_module = importlib.import_module("flet_main_app")
+p = MockPage()
+if hasattr(app_module, "main"):
+    try:
+        app_module.main(p)
+        print("main() completed")
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+    p.update()
+    print("Flet App launched.")
+else:
+    print("Error: main() not found")
     document.head.appendChild(script);
 })();
