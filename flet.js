@@ -25,7 +25,6 @@
 
             text.innerText = "メインプログラムを読み込み中...";
 
-            // flet_main.py と boot.py を両方fetchする（JS文字列内エスケープ問題を完全回避）
             const [mainRes, bootRes] = await Promise.all([
                 fetch('./flet_main.py'),
                 fetch('./boot.py')
@@ -53,10 +52,11 @@
                 }
             });
 
-            // flet_main.py の中身をPython変数として渡す
-            pyodide.globals.set("RAW_PYTHON_CODE", pythonCode);
+            // ★ flet_main.py を仮想FSに直接書き込む（runPythonには渡さない）
+            pyodide.FS.writeFile('/tmp/flet_main_app.py', pythonCode, { encoding: 'utf8' });
+            console.log("flet_main.py written to /tmp/flet_main_app.py");
 
-            // boot.py をそのまま実行（バックスラッシュエスケープなし）
+            // ★ boot.py だけを runPython で実行（flet_main.pyの中身は混入しない）
             pyodide.runPython(bootCode);
 
             console.log("Flet App Launched Successfully.");
@@ -64,6 +64,11 @@
         } catch (err) {
             console.error(err);
             text.innerHTML = '<span style="color:#ff6666;font-weight:bold;">起動エラー</span><br><small style="color:#ccc;">' + err.message + '</small>';
+        }
+    };
+
+    document.head.appendChild(script);
+})();            text.innerHTML = '<span style="color:#ff6666;font-weight:bold;">起動エラー</span><br><small style="color:#ccc;">' + err.message + '</small>';
         }
     };
 
