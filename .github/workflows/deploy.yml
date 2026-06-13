@@ -12,27 +12,22 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Create Dist Package
-        run: |
-          mkdir -p ./dist
-          
-          cp index.html ./dist/
-          cp flet.js ./dist/
-          cp flet_main.py ./dist/
-          
-          if [ -d "data" ]; then
-            cp -r data ./dist/
-          fi
-          if [ -d "fonts" ]; then
-            cp -r fonts ./dist/
-          fi
-          
-          echo "=== 配信フォルダ（dist）の中身を確認 ==="
-          ls -la ./dist
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Flet
+        run: pip install flet
+
+      - name: Build Web App
+        run: flet publish flet_main.py
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
+
       - name: Deploy to GitHub Pages
-        id: deployment
         uses: actions/deploy-pages@v4
