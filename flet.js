@@ -1,42 +1,102 @@
 (function() {
-    const loader = document.createElement('div');
-    loader.id = "flet-loader";
+    var loader = document.createElement('div');
     loader.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;background-color:#262626;display:flex;justify-content:center;align-items:center;color:#aaaaaa;font-family:sans-serif;z-index:999;";
-    loader.innerHTML = '<div><div id="flet-spinner" style="border:4px solid rgba(255,255,255,0.1);width:36px;height:36px;border-radius:50%;border-left-color:#339966;margin:0 auto 20px;"></div><div id="load-text">Python環境を起動中...</div></div>';
+    loader.innerHTML = '<div><div id="sp" style="border:4px solid rgba(255,255,255,0.1);width:36px;height:36px;border-radius:50%;border-left-color:#339966;margin:0 auto 20px;animation:spin 1s linear infinite;"></div><div id="lt">Python環境を起動中...</div></div>';
     document.body.appendChild(loader);
-    const styleRef = document.createElement('style');
-    styleRef.innerHTML = "@keyframes flet-spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}} #flet-spinner{animation:flet-spin 1s linear infinite;}";
-    document.head.appendChild(styleRef);
-    const script = document.createElement('script');
+    var st = document.createElement('style');
+    st.innerHTML = "@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}";
+    document.head.appendChild(st);
+    var script = document.createElement('script');
     script.src = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js";
-    script.onload = async () => {
-        const text = document.getElementById('load-text');
+    script.onload = async function() {
+        var lt = document.getElementById('lt');
         try {
-            text.innerText = "パッケージを準備中...";
-            let pyodide = await loadPyodide();
+            lt.innerText = "パッケージを準備中...";
+            var pyodide = await loadPyodide();
             await pyodide.loadPackage("micropip");
-            const micropip = pyodide.pyimport("micropip");
+            var micropip = pyodide.pyimport("micropip");
             await micropip.install("flet-core");
-            text.innerText = "メインプログラムを読み込み中...";
-            const mainRes = await fetch('./flet_main.py');
-            if (!mainRes.ok) throw new Error("flet_main.py が見つかりません");
-            const pythonCode = await mainRes.text();
+            lt.innerText = "アプリを読み込み中...";
+            var res = await fetch('./flet_main.py');
+            if (!res.ok) { throw new Error("flet_main.py not found"); }
+            var appCode = await res.text();
             pyodide.runPython("import sys, flet_core; sys.modules['flet'] = flet_core");
             pyodide.registerJsModule("js_renderer", {
-                renderPage: () => {
-                    const container = document.getElementById("flet-app-container");
-                    if (container) {
-                        loader.style.display = "none";
-                    }
+                renderPage: function() {
+                    loader.style.display = "none";
                 }
             });
-            pyodide.FS.writeFile("/tmp/flet_main_app.py", pythonCode);
-            pyodide.runPython([
-                "import sys, js_renderer",
-                "sys.path.insert(0, '/tmp')",
-                "_sd = {}",
-                "class CS:",
-                "    def get(self, k): return _sd.get(k)",
-                "    def set(self, k, v): _sd.__setitem__(k, v)",
-                "    def remove(self, k): _sd.pop(k, None)",
-                "    def contains_key(self, k): return k in
+            pyodide.FS.writeFile("/tmp/flet_main_app.py", appCode);
+            var lines = [];
+            lines.push("import sys, js_renderer, importlib, types");
+            lines.push("sys.path.insert(0, '/tmp')");
+            lines.push("_sd = {}");
+            lines.push("class CS:");
+            lines.push("    def get(self, k): return _sd.get(k)");
+            lines.push("    def set(self, k, v): _sd.__setitem__(k, v)");
+            lines.push("    def remove(self, k): _sd.pop(k, None)");
+            lines.push("    def contains_key(self, k): return k in _sd");
+            lines.push("_ss = {}");
+            lines.push("class SE:");
+            lines.push("    def get(self, k): return _ss.get(k)");
+            lines.push("    def set(self, k, v): _ss.__setitem__(k, v)");
+            lines.push("    def remove(self, k): _ss.pop(k, None)");
+            lines.push("    def contains_key(self, k): return k in _ss");
+            lines.push("class P:");
+            lines.push("    def __init__(self):");
+            lines.push("        self.title = ''");
+            lines.push("        self.padding = 0");
+            lines.push("        self.spacing = 0");
+            lines.push("        self.bgcolor = None");
+            lines.push("        self.theme_mode = None");
+            lines.push("        self.fonts = {}");
+            lines.push("        self.horizontal_alignment = None");
+            lines.push("        self.vertical_alignment = None");
+            lines.push("        self.scroll = None");
+            lines.push("        self.window_width = 400");
+            lines.push("        self.window_height = 800");
+            lines.push("        self.controls = []");
+            lines.push("        self.overlay = []");
+            lines.push("        self.views = []");
+            lines.push("        self.route = '/'");
+            lines.push("        self.snack_bar = None");
+            lines.push("        self.dialog = None");
+            lines.push("        self.bottom_sheet = None");
+            lines.push("        self.navigation_bar = None");
+            lines.push("        self.appbar = None");
+            lines.push("        self.floating_action_button = None");
+            lines.push("        self.theme = None");
+            lines.push("        self.dark_theme = None");
+            lines.push("        self.rtl = False");
+            lines.push("        self.width = 400");
+            lines.push("        self.height = 800");
+            lines.push("        self.client_storage = CS()");
+            lines.push("        self.session = SE()");
+            lines.push("    def update(self):");
+            lines.push("        try: js_renderer.renderPage()");
+            lines.push("        except: pass");
+            lines.push("    def add(self, *a):");
+            lines.push("        for c in a: self.controls.append(c)");
+            lines.push("    def go(self, r): self.route = r");
+            lines.push("    def show_snack_bar(self, s): self.snack_bar = s");
+            lines.push("    def close_dialog(self): self.dialog = None");
+            lines.push("    def launch_url(self, u, *a, **k): pass");
+            lines.push("_src = open('/tmp/flet_main_app.py').read()");
+            lines.push("_m = types.ModuleType('flet_main_app')");
+            lines.push("exec(compile(_src, 'flet_main_app', 'exec'), _m.__dict__)");
+            lines.push("sys.modules['flet_main_app'] = _m");
+            lines.push("p = P()");
+            lines.push("if hasattr(_m, 'main'):");
+            lines.push("    try: _m.main(p)");
+            lines.push("    except Exception as e:");
+            lines.push("        import traceback; traceback.print_exc()");
+            lines.push("    p.update()");
+            lines.push("else: print('main() not found')");
+            pyodide.runPython(lines.join("\n"));
+        } catch(err) {
+            console.error(err);
+            lt.innerHTML = '<span style="color:#ff6666;font-weight:bold;">起動エラー</span><br><small>' + err.message + '</small>';
+        }
+    };
+    document.head.appendChild(script);
+})();
