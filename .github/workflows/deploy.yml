@@ -19,7 +19,6 @@ jobs:
           cp index.html ./dist/
           cp flet.js ./dist/
           cp flet_main.py ./dist/
-          cp boot.py ./dist/
           
           if [ -d "data" ]; then
             cp -r data ./dist/
