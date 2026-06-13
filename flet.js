@@ -81,7 +81,8 @@
             lines.push("    def show_snack_bar(self, s): self.snack_bar = s");
             lines.push("    def close_dialog(self): self.dialog = None");
             lines.push("    def launch_url(self, u, *a, **k): pass");
-            lines.push("_src = open('/tmp/flet_main_app.py').read()");
+            lines.push("_raw = open('/tmp/flet_main_app.py').read()");
+            lines.push("_src = '\\n'.join(('# '+l if l.strip().startswith('ft.app(') else l) for l in _raw.split('\\n'))");
             lines.push("_m = types.ModuleType('flet_main_app')");
             lines.push("exec(compile(_src, 'flet_main_app', 'exec'), _m.__dict__)");
             lines.push("sys.modules['flet_main_app'] = _m");
