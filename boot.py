@@ -1,9 +1,6 @@
-import asyncio
 import sys
-import types
 import js_renderer
-
-sys.path.insert(0, "/tmp")
+sys.path.insert(0, '/tmp')
 
 _storage_dict = {}
 
@@ -64,6 +61,25 @@ class MockPage:
     def set_clipboard(self, value): pass
     def launch_url(self, url, *a, **k): pass
     def show_snack_bar(self, s): self.snack_bar = s
+    def close_dialog(self): self.dialog = None
+    def open_dialog(self, d): self.dialog = d
+    def show_bottom_sheet(self, b): self.bottom_sheet = b
+    def close_bottom_sheet(self): self.bottom_sheet = None
+
+import importlib
+app_module = importlib.import_module('flet_main_app')
+p = MockPage()
+if hasattr(app_module, 'main'):
+    try:
+        app_module.main(p)
+        print("main() completed")
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+    p.update()
+    print("Flet App launched.")
+else:
+    print("Error: main() not found")    def show_snack_bar(self, s): self.snack_bar = s
     def close_dialog(self): self.dialog = None
     def open_dialog(self, d): self.dialog = d
     def show_bottom_sheet(self, b): self.bottom_sheet = b
