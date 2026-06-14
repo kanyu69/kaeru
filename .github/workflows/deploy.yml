@@ -2,6 +2,7 @@ name: Web Build + Deploy to GitHub Pages
 
 on:
   push:
+    branches: [ main ]
   workflow_dispatch:
 
 concurrency:
@@ -9,8 +10,13 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  UV_PYTHON: 3.12
+  UV_PYTHON: "3.12"
   FLET_CLI_NO_RICH_OUTPUT: 1
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
 
 jobs:
   build:
@@ -23,26 +29,29 @@ jobs:
       - name: Setup uv
         uses: astral-sh/setup-uv@v6
 
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
       - name: Build app
         run: |
-          uv run flet build web --yes --verbose --base-url ${GITHUB_REPOSITORY#*/} --route-url-strategy hash
+          uv run flet build web --yes --verbose \
+            --base-url kaeru \
+            --route-url-strategy hash
           echo "=== build/web の中身 ==="
-          ls -la build/web/ || echo "build/web が存在しません"
-      - name: Upload Pages Artifact
+          ls -la build/web/
+
+      - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: build/web
           name: web-build-artifact
-          retention-days: 20
 
   deploy:
     name: Deploy to GitHub Pages
-    if: github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
