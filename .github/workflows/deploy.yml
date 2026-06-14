@@ -26,7 +26,8 @@ jobs:
       - name: Build app
         run: |
           uv run flet build web --yes --verbose --base-url ${GITHUB_REPOSITORY#*/} --route-url-strategy hash
-
+          echo "=== build/web の中身 ==="
+          ls -la build/web/ || echo "build/web が存在しません"
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
