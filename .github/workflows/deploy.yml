@@ -33,12 +33,15 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-
+          
+      - name: Show flet build help
+        run: uv run flet build web --help
+        
       - name: Build app
         run: |
           uv venv
           uv pip install flet
-          uv run flet build web --module-name flet_main --yes --verbose --base-url kaeru --route-url-strategy hash .
+          uv run flet build web --module-name flet_main --yes --verbose --base-url kaeru --route-url-strategy hash
           echo "=== build/web の中身 ==="
           ls -la build/web/
 
