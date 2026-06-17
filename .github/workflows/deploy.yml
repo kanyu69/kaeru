@@ -1,23 +1,18 @@
 name: Web Build + Deploy to GitHub Pages
-
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
-
 concurrency:
   group: "pages"
   cancel-in-progress: false
-
 env:
   UV_PYTHON: "3.12"
   FLET_CLI_NO_RICH_OUTPUT: 1
-
 permissions:
   contents: read
   pages: write
   id-token: write
-
 jobs:
   build:
     name: Build web app
@@ -25,32 +20,31 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Setup uv
         uses: astral-sh/setup-uv@v6
-
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          
-      - name: Show flet build help
-        run: uv run flet build web --help
-        
-      - name: Build app
+
+      - name: Setup venv and install flet
         run: |
           uv venv
           uv pip install flet
+
+      - name: Show flet build help
+        run: uv run flet build web --help
+
+      - name: Build app
+        run: |
           uv run flet build web --module-name flet_main --yes --verbose --base-url kaeru --route-url-strategy hash
           echo "=== build/web の中身 ==="
           ls -la build/web/
-
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: build/web
           name: web-build-artifact
-
   deploy:
     name: Deploy to GitHub Pages
     needs: build
@@ -61,7 +55,6 @@ jobs:
     steps:
       - name: Setup Pages
         uses: actions/configure-pages@v5
-
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
