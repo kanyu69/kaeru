@@ -36,9 +36,8 @@ jobs:
 
       - name: Build app
         run: |
-          uv run flet build web --yes --verbose \
-            --base-url kaeru \
-            --route-url-strategy hash
+          uv pip install flet
+          uv run flet build web --yes --verbose --base-url kaeru --route-url-strategy hash
           echo "=== build/web の中身 ==="
           ls -la build/web/
 
