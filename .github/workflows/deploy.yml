@@ -35,16 +35,18 @@ jobs:
       - name: Show flet build help
         run: uv run flet build web --help
 
+
       - name: Build app
         run: |
-          uv run flet build web --module-name flet_main --yes --verbose --base-url kaeru --route-url-strategy hash
+          uv run flet build web --module-name flet_main --yes --verbose --base-url kaeru --route-url-strategy hash web_app
           echo "=== build/web の中身 ==="
-          ls -la build/web/
+          ls -la web_app/build/web/
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: build/web
           name: web-build-artifact
+          
   deploy:
     name: Deploy to GitHub Pages
     needs: build
@@ -59,4 +61,5 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          artifact_name: web-build-artifact
+          path: web_app/build/web
+          name: web-build-artifact
