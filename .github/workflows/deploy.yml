@@ -30,11 +30,9 @@ jobs:
         run: |
           uv venv
           uv pip install flet
-      - name: Show flet build help
-        run: uv run flet build web --help
       - name: Build app
         run: |
-          uv run flet build web --module-name flet_main --yes --verbose --base-url kaeru --route-url-strategy hash web_app
+          uv run flet build web web_app --module-name flet_main --yes --verbose --base-url kaeru --route-url-strategy hash
           echo "=== build/web の中身 ==="
           ls -la web_app/build/web/
       - name: Upload artifact
