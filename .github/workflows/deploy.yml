@@ -26,16 +26,12 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-
       - name: Setup venv and install flet
         run: |
           uv venv
           uv pip install flet
-
       - name: Show flet build help
         run: uv run flet build web --help
-
-
       - name: Build app
         run: |
           uv run flet build web --module-name flet_main --yes --verbose --base-url kaeru --route-url-strategy hash web_app
@@ -44,9 +40,9 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: build/web
+          path: web_app/build/web
           name: web-build-artifact
-          
+
   deploy:
     name: Deploy to GitHub Pages
     needs: build
@@ -61,5 +57,4 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          path: web_app/build/web
-          name: web-build-artifact
+          artifact_name: web-build-artifact
