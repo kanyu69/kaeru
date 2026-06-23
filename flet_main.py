@@ -162,4 +162,4 @@ def main(page: ft.Page):
     # 2. 中身を描画して確定
     refresh_ui()
 
-ft.app(target=main)
+ft.run(main)
