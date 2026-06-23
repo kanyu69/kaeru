@@ -32,7 +32,7 @@ jobs:
           uv pip install flet
       - name: Build app
         run: |
-          uv run flet build web web_app --module-name flet_main --yes --verbose --base-url kaeru --route-url-strategy hash
+          uv run flet build web web_app --module-name flet_main --yes --verbose --base-url kaeru --route-url-strategy hash --clear-cache
           echo "=== build/web の中身 ==="
           ls -la web_app/build/web/
       - name: Upload artifact
