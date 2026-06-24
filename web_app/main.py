@@ -116,11 +116,7 @@ def main(page: ft.Page):
     page.window_width = 400
     page.window_height = 800
 
-    saved_lang = page.client_storage.get("user_lang") or "ja"
-    if saved_lang not in LANG_TEXTS:
-        saved_lang = "ja"
-
-    state = {"current_screen": "main", "lang": saved_lang}
+    saved_lang = "ja"
 
     main_content_area = ft.Container(expand=True)
     bottom_bar_container = ft.Container()
