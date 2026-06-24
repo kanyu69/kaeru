@@ -2,7 +2,15 @@ import flet as ft
 
 def main(page: ft.Page):
     page.title = "Test"
-    page.add(ft.Text("Step 1: OK"))
-    page.add(ft.Container(bgcolor="#262626", height=65, content=ft.Text("Step 2: Container OK", color=ft.Colors.WHITE)))
+    
+    content_area = ft.Container(expand=True)
+    layout = ft.Column([content_area], spacing=0, expand=True)
+    
+    def refresh():
+        content_area.content = ft.Text("Step 3: refresh via closure OK", color=ft.Colors.WHITE)
+        page.update()
+    
+    page.add(layout)
+    refresh()
 
 ft.run(main)
