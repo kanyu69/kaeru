@@ -19,16 +19,16 @@ LANG_TEXTS = {
 }
 
 class RoundButton(ft.Container):
-    def __init__(self, icon_name, text_text="", on_click=None):
+    def __init__(self, label="", text_text="", on_click=None):
         super().__init__()
         if text_text:
             self.content = ft.Column([
-                ft.Icon(icon_name, size=28, color=ft.Colors.WHITE),
+                ft.Text(label, size=20, color=ft.Colors.WHITE),
                 ft.Text(text_text, size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE, font_family=FONT_FAMILY),
             ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=1)
             self.padding = ft.padding.only(top=12, bottom=12)
         else:
-            self.content = ft.Icon(icon_name, size=32, color=ft.Colors.WHITE)
+            self.content = ft.Text(label, size=24, color=ft.Colors.WHITE)
             self.padding = ft.padding.only(top=6, bottom=6)
         self.bgcolor = BRAND_GREEN
         self.shape = ft.BoxShape.CIRCLE
@@ -43,21 +43,21 @@ class BottomMenuBar(ft.Container):
             lang = "ja"
 
         t = LANG_TEXTS[lang]
-        def make_nav_btn(icon_name, text, target):
+        def make_nav_btn(label, text, target):
             is_active = current_screen == target
             return ft.GestureDetector(
                 content=ft.Column([
-                    ft.Icon(icon_name, size=28, color=ft.Colors.WHITE if is_active else "#999999"),
+                    ft.Text(label, size=20, color=ft.Colors.WHITE if is_active else "#999999"),
                     ft.Text(text, size=12, font_family=FONT_FAMILY, color=ft.Colors.WHITE if is_active else "#999999", weight=ft.FontWeight.BOLD if is_active else ft.FontWeight.NORMAL),
                 ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=2),
                 on_tap=lambda _: on_change_screen(target)
             )
         self.content = ft.Row([
-            make_nav_btn(ft.Icons.HOME, t["title_main"], "main"),
-            make_nav_btn(ft.Icons.LIST, t["title_list"], "itemtype_widget"),
-            RoundButton(icon_name=ft.Icons.QR_CODE_SCANNER, text_text="スキャン", on_click=lambda _: on_change_screen("scan_widget")),
-            make_nav_btn(ft.Icons.HISTORY, t["title_history"], "history_widget"),
-            make_nav_btn(ft.Icons.SETTINGS, t["title_settings"], "settings_widget"),
+            make_nav_btn("🏠", t["title_main"], "main"),
+            make_nav_btn("📋", t["title_list"], "itemtype_widget"),
+            RoundButton(label="📷", text_text="スキャン", on_click=lambda _: on_change_screen("scan_widget")),
+            make_nav_btn("🕒", t["title_history"], "history_widget"),
+            make_nav_btn("⚙️", t["title_settings"], "settings_widget"),
         ], alignment=ft.MainAxisAlignment.SPACE_AROUND, vertical_alignment=ft.CrossAxisAlignment.CENTER)
         self.bgcolor = DARK_BG
         self.border_radius = 25
@@ -99,7 +99,7 @@ def get_settings_content(lang, on_toggle_lang):
         ft.Container(content=ft.Text(t["title_settings"], color=ft.Colors.WHITE, size=20, weight=ft.FontWeight.BOLD, font_family=FONT_FAMILY), bgcolor=BRAND_GREEN, height=65, alignment=ft.alignment.center),
         ft.Column([
             ft.Container(bgcolor=ft.Colors.WHITE, border_radius=15, padding=20, content=ft.Column([
-                ft.Row([ft.Icon(ft.Icons.HOME, size=22, color=BRAND_GREEN), ft.Text(t["lang_setting"], size=17, weight=ft.FontWeight.BOLD, color="#262626", font_family=FONT_FAMILY)], spacing=10),
+                ft.Row([ft.Text("🏠", size=20), ft.Text(t["lang_setting"], size=17, weight=ft.FontWeight.BOLD, color="#262626", font_family=FONT_FAMILY)], spacing=10),
                 ft.Text(t["lang_desc"], size=12, color="#888888", font_family=FONT_FAMILY),
                 ft.Row([
                     ft.Text("日本語", size=16, font_family=FONT_FAMILY, weight=ft.FontWeight.BOLD if lang == "ja" else ft.FontWeight.NORMAL, color=BRAND_GREEN if lang == "ja" else "#999999"),
