@@ -73,7 +73,7 @@ def get_main_content(lang):
     return ft.Stack([
         ft.Container(bgcolor=BRAND_GREEN, expand=True),
         ft.Container(padding=20, content=ft.Column([
-            ft.Container(content=ft.Text(t["important_notice"], color="#333333", size=14, font_family=FONT_FAMILY), bgcolor=ft.Colors.with_opacity(0.5, ft.Colors.WHITE), border_radius=15, padding=10, height=80, alignment=ft.alignment.center_left),
+            ft.Container(content=ft.Text(t["important_notice"], color="#333333", size=14, font_family=FONT_FAMILY), bgcolor=ft.Colors.with_opacity(0.5, ft.Colors.WHITE), border_radius=15, padding=10, height=80, alignment=ft.alignment.CENTER_LEFT),
             ft.ElevatedButton(text=t["submit_info"], height=55, width=float("inf"), style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10))),
             ft.Container(content=ft.Text(t["input_area"], font_family=FONT_FAMILY, color=ft.Colors.WHITE), height=200),
         ], spacing=15))
