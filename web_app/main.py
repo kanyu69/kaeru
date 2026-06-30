@@ -73,7 +73,7 @@ def get_main_content(lang):
     return ft.Stack([
         ft.Container(bgcolor=BRAND_GREEN, expand=True),
         ft.Container(padding=20, content=ft.Column([
-            ft.Container(content=ft.Text(t["important_notice"], color="#333333", size=14, font_family=FONT_FAMILY), bgcolor=ft.Colors.with_opacity(0.5, ft.Colors.WHITE), border_radius=15, padding=10, height=80, alignment=ft.alignment.CENTER_LEFT),
+            ft.Container(content=ft.Text(t["important_notice"], color="#333333", size=14, font_family=FONT_FAMILY), bgcolor=ft.Colors.with_opacity(0.5, ft.Colors.WHITE), border_radius=15, padding=10, height=80, alignment="center_left"),
             ft.ElevatedButton(text=t["submit_info"], height=55, width=float("inf"), style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10))),
             ft.Container(content=ft.Text(t["input_area"], font_family=FONT_FAMILY, color=ft.Colors.WHITE), height=200),
         ], spacing=15))
@@ -82,21 +82,21 @@ def get_main_content(lang):
 def get_itemtype_content(lang):
     if lang not in LANG_TEXTS: lang = "ja"
     t = LANG_TEXTS[lang]
-    return ft.Container(bgcolor=LIGHT_GRAY, alignment=ft.alignment.center, content=ft.Text(f"{t['title_list']} ({t['ready']})", size=20, color="#262626", font_family=FONT_FAMILY))
+    return ft.Container(bgcolor=LIGHT_GRAY, alignment="center", content=ft.Text(f"{t['title_list']} ({t['ready']})", size=20, color="#262626", font_family=FONT_FAMILY))
 
 def get_scan_content(lang):
-    return ft.Container(bgcolor=ft.Colors.BLACK, alignment=ft.alignment.center, content=ft.Text("Camera / Barcode Scan", size=20, color=ft.Colors.WHITE, font_family=FONT_FAMILY))
+    return ft.Container(bgcolor=ft.Colors.BLACK, alignment="center", content=ft.Text("Camera / Barcode Scan", size=20, color=ft.Colors.WHITE, font_family=FONT_FAMILY))
 
 def get_history_content(lang):
     if lang not in LANG_TEXTS: lang = "ja"
     t = LANG_TEXTS[lang]
-    return ft.Container(bgcolor=LIGHT_GRAY, alignment=ft.alignment.center, content=ft.Text(f"{t['title_history']} ({t['ready']})", size=20, color="#262626", font_family=FONT_FAMILY))
+    return ft.Container(bgcolor=LIGHT_GRAY, alignment="center", content=ft.Text(f"{t['title_history']} ({t['ready']})", size=20, color="#262626", font_family=FONT_FAMILY))
 
 def get_settings_content(lang, on_toggle_lang):
     if lang not in LANG_TEXTS: lang = "ja"
     t = LANG_TEXTS[lang]
     return ft.Container(bgcolor=LIGHT_GRAY, content=ft.Column([
-        ft.Container(content=ft.Text(t["title_settings"], color=ft.Colors.WHITE, size=20, weight=ft.FontWeight.BOLD, font_family=FONT_FAMILY), bgcolor=BRAND_GREEN, height=65, alignment=ft.alignment.center),
+        ft.Container(content=ft.Text(t["title_settings"], color=ft.Colors.WHITE, size=20, weight=ft.FontWeight.BOLD, font_family=FONT_FAMILY), bgcolor=BRAND_GREEN, height=65, alignment="center"),
         ft.Column([
             ft.Container(bgcolor=ft.Colors.WHITE, border_radius=15, padding=20, content=ft.Column([
                 ft.Row([ft.Text("🏠", size=20), ft.Text(t["lang_setting"], size=17, weight=ft.FontWeight.BOLD, color="#262626", font_family=FONT_FAMILY)], spacing=10),
@@ -137,20 +137,4 @@ def main(page: ft.Page):
         elif target == "history_widget": main_content_area.content = get_history_content(lang)
         elif target == "settings_widget": main_content_area.content = get_settings_content(lang, toggle_language)
 
-        bottom_bar_container.content = BottomMenuBar(current_screen=target, on_change_screen=change_screen, lang=lang)
-        page.update()
-
-    def change_screen(target_name):
-        state["current_screen"] = target_name
-        refresh_ui()
-
-    def toggle_language(is_english):
-        new_lang = "en" if is_english else "ja"
-        state["lang"] = new_lang
-        page.client_storage.set("user_lang", new_lang)
-        refresh_ui()
-
-    page.add(app_layout)
-    refresh_ui()
-
-ft.run(main)
+        bottom_bar_container.content = BottomMenuBar(current_screen=target, on_
