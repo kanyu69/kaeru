@@ -117,12 +117,10 @@ def main(page: ft.Page):
     page.window_height = 800
 
     saved_lang = "ja"
-
     state = {"current_screen": "main", "lang": saved_lang}
 
     main_content_area = ft.Container(expand=True)
     bottom_bar_container = ft.Container()
-
     app_layout = ft.Column([main_content_area, bottom_bar_container], spacing=0, expand=True)
 
     def refresh_ui():
@@ -131,10 +129,37 @@ def main(page: ft.Page):
         if lang not in LANG_TEXTS:
             lang = "ja"
 
-        if target == "main": main_content_area.content = get_main_content(lang)
-        elif target == "itemtype_widget": main_content_area.content = get_itemtype_content(lang)
-        elif target == "scan_widget": main_content_area.content = get_scan_content(lang)
-        elif target == "history_widget": main_content_area.content = get_history_content(lang)
-        elif target == "settings_widget": main_content_area.content = get_settings_content(lang, toggle_language)
+        # 各画面の切り替え
+        if target == "main":
+            main_content_area.content = get_main_content(lang)
+        elif target == "itemtype_widget":
+            main_content_area.content = get_itemtype_content(lang)
+        elif target == "scan_widget":
+            main_content_area.content = get_scan_content(lang)
+        elif target == "history_widget":
+            main_content_area.content = get_history_content(lang)
+        elif target == "settings_widget":
+            main_content_area.content = get_settings_content(lang, toggle_language)
 
-        bottom_bar_container.content = BottomMenuBar(current_screen=target, on_
+        # 下部メニューバーの更新（見やすく改行を入れました）
+        bottom_bar_container.content = BottomMenuBar(
+            current_screen=target,
+            on_change_screen=change_screen,
+            lang=lang
+        )
+        page.update()
+
+    def change_screen(target_name):
+        state["current_screen"] = target_name
+        refresh_ui()
+
+    def toggle_language(is_english):
+        new_lang = "en" if is_english else "ja"
+        state["lang"] = new_lang
+        page.client_storage.set("user_lang", new_lang)
+        refresh_ui()
+
+    page.add(app_layout)
+    refresh_ui()
+
+ft.run(main)
