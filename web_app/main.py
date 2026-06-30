@@ -26,10 +26,11 @@ class RoundButton(ft.Container):
                 ft.Text(label, size=20, color=ft.Colors.WHITE),
                 ft.Text(text_text, size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE, font_family=FONT_FAMILY),
             ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=1)
-            self.padding = ft.padding.only(top=12, bottom=12)
+            # ft.Padding(left, top, right, bottom)
+            self.padding = ft.Padding(0, 12, 0, 12)
         else:
             self.content = ft.Text(label, size=24, color=ft.Colors.WHITE)
-            self.padding = ft.padding.only(top=6, bottom=6)
+            self.padding = ft.Padding(0, 6, 0, 6)
         self.bgcolor = BRAND_GREEN
         self.shape = ft.BoxShape.CIRCLE
         self.width = 70
@@ -62,8 +63,10 @@ class BottomMenuBar(ft.Container):
         self.bgcolor = DARK_BG
         self.border_radius = 25
         self.height = 65
-        self.margin = ft.margin.only(left=10, right=10, bottom=15)
-        self.padding = ft.padding.symmetric(horizontal=10)
+        # ft.Margin(left, top, right, bottom)
+        self.margin = ft.Margin(10, 0, 10, 15)
+        # ft.Padding(left, top, right, bottom)
+        self.padding = ft.Padding(10, 0, 10, 0)
 
 def get_main_content(lang):
     if lang not in LANG_TEXTS:
@@ -81,7 +84,6 @@ def get_main_content(lang):
                 height=80, 
                 alignment="center_left"
             ),
-            # エラー回避のため、text引数を廃止し contentに ft.Text を指定する形に修正
             ft.ElevatedButton(
                 content=ft.Text(t["submit_info"]),
                 height=55, 
