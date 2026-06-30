@@ -73,8 +73,21 @@ def get_main_content(lang):
     return ft.Stack([
         ft.Container(bgcolor=BRAND_GREEN, expand=True),
         ft.Container(padding=20, content=ft.Column([
-            ft.Container(content=ft.Text(t["important_notice"], color="#333333", size=14, font_family=FONT_FAMILY), bgcolor=ft.Colors.with_opacity(0.5, ft.Colors.WHITE), border_radius=15, padding=10, height=80, alignment="center_left"),
-            ft.ElevatedButton(text=t["submit_info"], height=55, width=float("inf"), style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10))),
+            ft.Container(
+                content=ft.Text(t["important_notice"], color="#333333", size=14, font_family=FONT_FAMILY), 
+                bgcolor=ft.Colors.with_opacity(0.5, ft.Colors.WHITE), 
+                border_radius=15, 
+                padding=10, 
+                height=80, 
+                alignment="center_left"
+            ),
+            # エラー回避のため、text引数を廃止し contentに ft.Text を指定する形に修正
+            ft.ElevatedButton(
+                content=ft.Text(t["submit_info"]),
+                height=55, 
+                width=float("inf"), 
+                style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10))
+            ),
             ft.Container(content=ft.Text(t["input_area"], font_family=FONT_FAMILY, color=ft.Colors.WHITE), height=200),
         ], spacing=15))
     ], expand=True)
@@ -129,7 +142,6 @@ def main(page: ft.Page):
         if lang not in LANG_TEXTS:
             lang = "ja"
 
-        # 各画面の切り替え
         if target == "main":
             main_content_area.content = get_main_content(lang)
         elif target == "itemtype_widget":
@@ -141,7 +153,6 @@ def main(page: ft.Page):
         elif target == "settings_widget":
             main_content_area.content = get_settings_content(lang, toggle_language)
 
-        # 下部メニューバーの更新（見やすく改行を入れました）
         bottom_bar_container.content = BottomMenuBar(
             current_screen=target,
             on_change_screen=change_screen,
