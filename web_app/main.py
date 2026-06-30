@@ -3,7 +3,6 @@ import flet as ft
 BRAND_GREEN = "#339966"
 DARK_BG = "#262626"
 LIGHT_GRAY = "#F5F7FA"
-FONT_FAMILY = "UD"
 
 LANG_TEXTS = {
     "ja": {
@@ -24,9 +23,8 @@ class RoundButton(ft.Container):
         if text_text:
             self.content = ft.Column([
                 ft.Text(label, size=20, color=ft.Colors.WHITE),
-                ft.Text(text_text, size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE, font_family=FONT_FAMILY),
+                ft.Text(text_text, size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
             ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=1)
-            # ft.Padding(left, top, right, bottom)
             self.padding = ft.Padding(0, 12, 0, 12)
         else:
             self.content = ft.Text(label, size=24, color=ft.Colors.WHITE)
@@ -49,7 +47,7 @@ class BottomMenuBar(ft.Container):
             return ft.GestureDetector(
                 content=ft.Column([
                     ft.Text(label, size=20, color=ft.Colors.WHITE if is_active else "#999999"),
-                    ft.Text(text, size=12, font_family=FONT_FAMILY, color=ft.Colors.WHITE if is_active else "#999999", weight=ft.FontWeight.BOLD if is_active else ft.FontWeight.NORMAL),
+                    ft.Text(text, size=12, color=ft.Colors.WHITE if is_active else "#999999", weight=ft.FontWeight.BOLD if is_active else ft.FontWeight.NORMAL),
                 ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=2),
                 on_tap=lambda _: on_change_screen(target)
             )
@@ -63,9 +61,7 @@ class BottomMenuBar(ft.Container):
         self.bgcolor = DARK_BG
         self.border_radius = 25
         self.height = 65
-        # ft.Margin(left, top, right, bottom)
         self.margin = ft.Margin(10, 0, 10, 15)
-        # ft.Padding(left, top, right, bottom)
         self.padding = ft.Padding(10, 0, 10, 0)
 
 def get_main_content(lang):
@@ -77,7 +73,7 @@ def get_main_content(lang):
         ft.Container(bgcolor=BRAND_GREEN, expand=True),
         ft.Container(padding=20, content=ft.Column([
             ft.Container(
-                content=ft.Text(t["important_notice"], color="#333333", size=14, font_family=FONT_FAMILY), 
+                content=ft.Text(t["important_notice"], color="#333333", size=14), 
                 bgcolor=ft.Colors.with_opacity(0.5, ft.Colors.WHITE), 
                 border_radius=15, 
                 padding=10, 
@@ -90,36 +86,36 @@ def get_main_content(lang):
                 width=float("inf"), 
                 style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10))
             ),
-            ft.Container(content=ft.Text(t["input_area"], font_family=FONT_FAMILY, color=ft.Colors.WHITE), height=200),
+            ft.Container(content=ft.Text(t["input_area"], color=ft.Colors.WHITE), height=200),
         ], spacing=15))
     ], expand=True)
 
 def get_itemtype_content(lang):
     if lang not in LANG_TEXTS: lang = "ja"
     t = LANG_TEXTS[lang]
-    return ft.Container(bgcolor=LIGHT_GRAY, alignment="center", content=ft.Text(f"{t['title_list']} ({t['ready']})", size=20, color="#262626", font_family=FONT_FAMILY))
+    return ft.Container(bgcolor=LIGHT_GRAY, alignment="center", content=ft.Text(f"{t['title_list']} ({t['ready']})", size=20, color="#262626"))
 
 def get_scan_content(lang):
-    return ft.Container(bgcolor=ft.Colors.BLACK, alignment="center", content=ft.Text("Camera / Barcode Scan", size=20, color=ft.Colors.WHITE, font_family=FONT_FAMILY))
+    return ft.Container(bgcolor=ft.Colors.BLACK, alignment="center", content=ft.Text("Camera / Barcode Scan", size=20, color=ft.Colors.WHITE))
 
 def get_history_content(lang):
     if lang not in LANG_TEXTS: lang = "ja"
     t = LANG_TEXTS[lang]
-    return ft.Container(bgcolor=LIGHT_GRAY, alignment="center", content=ft.Text(f"{t['title_history']} ({t['ready']})", size=20, color="#262626", font_family=FONT_FAMILY))
+    return ft.Container(bgcolor=LIGHT_GRAY, alignment="center", content=ft.Text(f"{t['title_history']} ({t['ready']})", size=20, color="#262626"))
 
 def get_settings_content(lang, on_toggle_lang):
     if lang not in LANG_TEXTS: lang = "ja"
     t = LANG_TEXTS[lang]
     return ft.Container(bgcolor=LIGHT_GRAY, content=ft.Column([
-        ft.Container(content=ft.Text(t["title_settings"], color=ft.Colors.WHITE, size=20, weight=ft.FontWeight.BOLD, font_family=FONT_FAMILY), bgcolor=BRAND_GREEN, height=65, alignment="center"),
+        ft.Container(content=ft.Text(t["title_settings"], color=ft.Colors.WHITE, size=20, weight=ft.FontWeight.BOLD), bgcolor=BRAND_GREEN, height=65, alignment="center"),
         ft.Column([
             ft.Container(bgcolor=ft.Colors.WHITE, border_radius=15, padding=20, content=ft.Column([
-                ft.Row([ft.Text("🏠", size=20), ft.Text(t["lang_setting"], size=17, weight=ft.FontWeight.BOLD, color="#262626", font_family=FONT_FAMILY)], spacing=10),
-                ft.Text(t["lang_desc"], size=12, color="#888888", font_family=FONT_FAMILY),
+                ft.Row([ft.Text("🏠", size=20), ft.Text(t["lang_setting"], size=17, weight=ft.FontWeight.BOLD, color="#262626")], spacing=10),
+                ft.Text(t["lang_desc"], size=12, color="#888888"),
                 ft.Row([
-                    ft.Text("日本語", size=16, font_family=FONT_FAMILY, weight=ft.FontWeight.BOLD if lang == "ja" else ft.FontWeight.NORMAL, color=BRAND_GREEN if lang == "ja" else "#999999"),
+                    ft.Text("日本語", size=16, weight=ft.FontWeight.BOLD if lang == "ja" else ft.FontWeight.NORMAL, color=BRAND_GREEN if lang == "ja" else "#999999"),
                     ft.Switch(value=(lang == "en"), active_track_color=BRAND_GREEN, on_change=lambda e: on_toggle_lang(e.control.value)),
-                    ft.Text("English", size=16, font_family=FONT_FAMILY, weight=ft.FontWeight.BOLD if lang == "en" else ft.FontWeight.NORMAL, color=BRAND_GREEN if lang == "en" else "#999999"),
+                    ft.Text("English", size=16, weight=ft.FontWeight.BOLD if lang == "en" else ft.FontWeight.NORMAL, color=BRAND_GREEN if lang == "en" else "#999999"),
                 ], alignment=ft.MainAxisAlignment.CENTER, spacing=15)
             ], spacing=10), height=150)
         ], expand=True, scroll=ft.ScrollMode.AUTO, padding=20)
