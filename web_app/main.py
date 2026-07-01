@@ -1,6 +1,7 @@
 import flet as ft
-import requests
-import threading
+import urllib.request
+import urllib.parse
+import json
 from datetime import datetime
 
 # カラー定義
@@ -8,7 +9,7 @@ BRAND_GREEN = "#339966"
 DARK_BG = "#262626"
 LIGHT_GRAY = "#F5F7FA"
 
-# 翻訳データの定義 (元コードのITEM, AREA, LOCALIZED_TEXTを統合・整理)
+# 翻訳データの定義
 ITEM_NAMES = {
     "ja": {
         "ITEM_LEMON": "レモン", "ITEM_ORANGE": "オレンジ", "ITEM_GRAPEFRUIT": "グレープフルーツ",
@@ -40,34 +41,35 @@ LANG_TEXTS = {
 }
 
 # Supabase 設定
-SUPABASE_URL = "https://iktqvcqxrkabmgdmbgjl.supabase.co"
+SUPABASE_URL = "https://iktqvcqxrkabmbgjl.supabase.co"
 SUPABASE_ANON_KEY = "sb_publishable_z2zAh-vbopc9_ZBGE_wozg_YPrOuQ_x"
 
+# urllib.request を使った互換性の高い通信ロジック
 def connect_sheet(jan_code: str):
-    url = f"{SUPABASE_URL}/rest/v1/products"
-    params = {"jan": f"eq.{jan_code}"}
-    headers = {"apikey": SUPABASE_ANON_KEY, "Authorization": f"Bearer {SUPABASE_ANON_KEY}"}
+    url = f"{SUPABASE_URL}/rest/v1/products?jan=eq.{urllib.parse.quote(jan_code)}"
+    req = urllib.request.Request(url)
+    req.add_header("apikey", SUPABASE_ANON_KEY)
+    req.add_header("Authorization", f"Bearer {SUPABASE_ANON_KEY}")
     try:
-        r = requests.get(url, params=params, headers=headers, timeout=10)
-        r.raise_for_status()
-        data = r.json()
-        return data[0] if data else None
+        with urllib.request.urlopen(req, timeout=10) as response:
+            data = json.loads(response.read().decode("utf-8"))
+            return data[0] if data else None
     except Exception as e:
         print(f"Database Error: {e}")
         return None
 
 def connect_sheet_all():
     url = f"{SUPABASE_URL}/rest/v1/products"
-    headers = {"apikey": SUPABASE_ANON_KEY, "Authorization": f"Bearer {SUPABASE_ANON_KEY}"}
+    req = urllib.request.Request(url)
+    req.add_header("apikey", SUPABASE_ANON_KEY)
+    req.add_header("Authorization", f"Bearer {SUPABASE_ANON_KEY}")
     try:
-        r = requests.get(url, headers=headers, timeout=15)
-        r.raise_for_status()
-        return r.json()
+        with urllib.request.urlopen(req, timeout=15) as response:
+            return json.loads(response.read().decode("utf-8"))
     except Exception as e:
         print(f"Database Error: {e}")
         return []
 
-# 翻訳ヘルパー関数
 def get_translated_name(lang, item_id):
     if lang not in ITEM_NAMES:
         lang = "ja"
@@ -120,7 +122,6 @@ class BottomMenuBar(ft.Container):
         self.margin = ft.Margin(10, 0, 10, 15)
         self.padding = ft.Padding(10, 0, 10, 0)
 
-# ホーム画面
 def get_main_content(lang):
     t = LANG_TEXTS[lang]
     return ft.Stack([
@@ -131,12 +132,11 @@ def get_main_content(lang):
         ], spacing=15))
     ], expand=True)
 
-# カテゴリ選択（リストトップ）画面
 def get_itemtype_content(lang, on_select_category):
     categories = [
         {"id": "ITEM_LEMON", "icon": "🍋"},
         {"id": "ITEM_ORANGE", "icon": "🍊"},
-        {"id": "ITEM_GRAPEFRUIT", "icon": "Status: 🍊"}, # 代替アイコン
+        {"id": "ITEM_GRAPEFRUIT", "icon": "🍊"},
         {"id": "ITEM_ZAKURO", "icon": "🍎"}
     ]
     
@@ -160,7 +160,6 @@ def get_itemtype_content(lang, on_select_category):
         ])
     )
 
-# 商品一覧（絞り込み後）画面
 def get_list_widget_content(lang, category_id):
     t = LANG_TEXTS[lang]
     products = connect_sheet_all()
@@ -203,7 +202,6 @@ def get_list_widget_content(lang, category_id):
         ], expand=True)
     )
 
-# スキャン（バーコード検索テスト）画面
 def get_scan_content(lang, on_search):
     t = LANG_TEXTS[lang]
     jan_input = ft.TextField(label="JAN Code", hint_text="e.g. 4901234567890", keyboard_type=ft.KeyboardType.NUMBER)
@@ -223,7 +221,6 @@ def get_scan_content(lang, on_search):
         ], alignment=ft.MainAxisAlignment.CENTER, spacing=20)
     )
 
-# 履歴画面
 def get_history_content(lang, history_list, on_clear):
     t = LANG_TEXTS[lang]
     
@@ -260,7 +257,6 @@ def get_history_content(lang, history_list, on_clear):
         ], expand=True)
     )
 
-# 設定画面
 def get_settings_content(lang, on_toggle_lang):
     t = LANG_TEXTS[lang]
     return ft.Container(
@@ -295,23 +291,20 @@ def main(page: ft.Page):
     page.window_width = 400
     page.window_height = 800
 
-    # アプリのグローバル状態管理
     state = {
         "current_screen": "main",
         "lang": "ja",
         "selected_category": None,
-        "history": [] # 履歴データの保存用配列
+        "history": []
     }
 
     main_content_area = ft.Container(expand=True)
     bottom_bar_container = ft.Container()
     app_layout = ft.Column([main_content_area, bottom_bar_container], spacing=0, expand=True)
 
-    # JANコード検索処理（スキャンシミュレータからの呼び出し）
     def handle_barcode_search(jan_code):
         t = LANG_TEXTS[state["lang"]]
         
-        # 簡易ダイアログで検索中を表示
         loading_dialog = ft.AlertDialog(title=ft.Text(t["searching"]), open=True)
         page.overlay.append(loading_dialog)
         page.update()
@@ -322,17 +315,14 @@ def main(page: ft.Page):
         page.update()
 
         if not result:
-            # 未登録ポップアップ
             page.overlay.append(ft.AlertDialog(title=ft.Text(t["not_registered"]), content=ft.Text(f"JAN: {jan_code}"), open=True))
         else:
-            # データの組み立て
             display_area = get_translated_name(state["lang"], result.get("area", ""))
             display_item = get_translated_name(state["lang"], result.get("item", ""))
             area_text = t["area_label"].format(display_area) if display_area else ""
             msg = t["item_usage_label"].format(area_text, display_item)
             img_path = result.get("image_path") or "https://via.placeholder.com/150"
 
-            # 履歴に追加
             now = datetime.now().strftime('%Y/%m/%d %H:%M')
             new_entry = {
                 'product_name': str(result.get("product_name")),
@@ -342,7 +332,6 @@ def main(page: ft.Page):
             }
             state["history"].insert(0, new_entry)
 
-            # 結果ポップアップの表示
             page.overlay.append(ft.AlertDialog(
                 title=ft.Text(result.get("product_name")),
                 content=ft.Column([
@@ -354,13 +343,11 @@ def main(page: ft.Page):
             ))
         refresh_ui()
 
-    # カテゴリ選択時の挙動
     def handle_category_select(category_id):
         state["selected_category"] = category_id
         state["current_screen"] = "list_widget"
         refresh_ui()
 
-    # 履歴全削除
     def handle_clear_history(e):
         state["history"] = []
         refresh_ui()
