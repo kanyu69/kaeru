@@ -145,7 +145,6 @@ def get_main_content(lang):
         ft.Container(bgcolor=BRAND_GREEN, expand=True),
         ft.Container(padding=20, content=ft.Column([
             ft.Container(content=ft.Text(t["important_notice"], color="#333333", size=14), bgcolor=ft.Colors.with_opacity(0.5, ft.Colors.WHITE), border_radius=15, padding=10, height=80, alignment="center_left"),
-            # 最新の ft.Button 仕様 (content=ft.Text(...)) に修正
             ft.Button(content=ft.Text(t["submit_info"]), height=55, width=float("inf"), style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10))),
         ], spacing=15))
     ], expand=True)
@@ -229,7 +228,6 @@ def get_scan_content(lang, on_search):
             ft.Text("Scan Simulator", size=22, color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD),
             ft.Text(t["input_area"], color=ft.Colors.WHITE, size=14),
             jan_input,
-            # 最新の ft.Button 仕様 (content=ft.Text(...)) に修正。背景色等はstyleにまとめます
             ft.Button(
                 content=ft.Text(t["search_btn"], color=ft.Colors.WHITE),
                 on_click=lambda _: on_search(jan_input.value),
@@ -261,7 +259,8 @@ def get_history_content(lang, history_list, on_clear):
         )
         
     if not cards:
-        cards.append(ft.Container(content=ft.Text(t["no_history"], color="#262626"), alignment=ft.alignment.center, padding=20))
+        # エラー箇所：ft.alignment.center を "center" 文字列指定に変更
+        cards.append(ft.Container(content=ft.Text(t["no_history"], color="#262626"), alignment="center", padding=20))
 
     return ft.Container(
         bgcolor=LIGHT_GRAY,
@@ -269,7 +268,7 @@ def get_history_content(lang, history_list, on_clear):
         content=ft.Column([
             ft.Row([
                 ft.Text(t["title_history"], size=22, weight=ft.FontWeight.BOLD, color="#262626"),
-                ft.TextButton(content=ft.Text(t["clear_history"], color=ft.Colors.RED), on_click=on_clear)
+                ft.TextButton(content=ft.Text(t["clear_history"], color=ft.Colors.RED), on_change=on_clear)
             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
             ft.Column(cards, scroll=ft.ScrollMode.AUTO, expand=True)
         ], expand=True)
