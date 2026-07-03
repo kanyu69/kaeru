@@ -145,8 +145,8 @@ def get_main_content(lang):
         ft.Container(bgcolor=BRAND_GREEN, expand=True),
         ft.Container(padding=20, content=ft.Column([
             ft.Container(content=ft.Text(t["important_notice"], color="#333333", size=14), bgcolor=ft.Colors.with_opacity(0.5, ft.Colors.WHITE), border_radius=15, padding=10, height=80, alignment="center_left"),
-            # 警告を避けるため、確実な ft.FilledButton を使用
-            ft.FilledButton(text=t["submit_info"], height=55, width=float("inf"), style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10))),
+            # 最新の ft.Button 仕様 (content=ft.Text(...)) に修正
+            ft.Button(content=ft.Text(t["submit_info"]), height=55, width=float("inf"), style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10))),
         ], spacing=15))
     ], expand=True)
 
@@ -229,8 +229,13 @@ def get_scan_content(lang, on_search):
             ft.Text("Scan Simulator", size=22, color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD),
             ft.Text(t["input_area"], color=ft.Colors.WHITE, size=14),
             jan_input,
-            # ここも ft.FilledButton に修正
-            ft.FilledButton(text=t["search_btn"], on_click=lambda _: on_search(jan_input.value), width=float("inf"), bgcolor=BRAND_GREEN, color=ft.Colors.WHITE)
+            # 最新の ft.Button 仕様 (content=ft.Text(...)) に修正。背景色等はstyleにまとめます
+            ft.Button(
+                content=ft.Text(t["search_btn"], color=ft.Colors.WHITE),
+                on_click=lambda _: on_search(jan_input.value),
+                width=float("inf"),
+                style=ft.ButtonStyle(bgcolor=BRAND_GREEN)
+            )
         ], alignment=ft.MainAxisAlignment.CENTER, spacing=20)
     )
 
@@ -264,7 +269,7 @@ def get_history_content(lang, history_list, on_clear):
         content=ft.Column([
             ft.Row([
                 ft.Text(t["title_history"], size=22, weight=ft.FontWeight.BOLD, color="#262626"),
-                ft.TextButton(text=t["clear_history"], on_click=on_clear, style=ft.ButtonStyle(color=ft.Colors.RED))
+                ft.TextButton(content=ft.Text(t["clear_history"], color=ft.Colors.RED), on_click=on_clear)
             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
             ft.Column(cards, scroll=ft.ScrollMode.AUTO, expand=True)
         ], expand=True)
