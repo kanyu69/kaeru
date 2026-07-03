@@ -8,7 +8,6 @@ from datetime import datetime
 if sys.platform == "emscripten":
     from pyodide.http import pyfetch
 else:
-    # ローカルPCテスト用の代替（PCで動かす場合のみ使用）
     import urllib.request as urllib_req
 
 # カラー定義
@@ -51,20 +50,18 @@ LANG_TEXTS = {
 SUPABASE_URL = "https://iktqvcqxrkabmbgjl.supabase.co"
 SUPABASE_ANON_KEY = "sb_publishable_z2zAh-vbopc9_ZBGE_wozg_YPrOuQ_x"
 
-# ブラウザ環境で絶対にクラッシュしない非同期の通信関数
+# 非同期の通信関数
 async def connect_sheet_async(jan_code: str):
     url = f"{SUPABASE_URL}/rest/v1/products?jan=eq.{jan_code}"
     headers = {"apikey": SUPABASE_ANON_KEY, "Authorization": f"Bearer {SUPABASE_ANON_KEY}"}
     
     try:
         if sys.platform == "emscripten":
-            # ブラウザの Fetch API を使用
             response = await pyfetch(url, method="GET", headers=headers)
             if response.status == 200:
                 data = await response.json()
                 return data[0] if data else None
         else:
-            # PCローカル環境用
             req = urllib_req.Request(url, headers=headers)
             with urllib_req.urlopen(req, timeout=10) as r:
                 data = json.loads(r.read().decode("utf-8"))
@@ -148,7 +145,7 @@ def get_main_content(lang):
         ft.Container(bgcolor=BRAND_GREEN, expand=True),
         ft.Container(padding=20, content=ft.Column([
             ft.Container(content=ft.Text(t["important_notice"], color="#333333", size=14), bgcolor=ft.Colors.with_opacity(0.5, ft.Colors.WHITE), border_radius=15, padding=10, height=80, alignment="center_left"),
-            ft.ElevatedButton(content=ft.Text(t["submit_info"]), height=55, width=float("inf"), style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10))),
+            ft.Button(text=t["submit_info"], height=55, width=float("inf"), style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10))),
         ], spacing=15))
     ], expand=True)
 
@@ -231,7 +228,7 @@ def get_scan_content(lang, on_search):
             ft.Text("Scan Simulator", size=22, color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD),
             ft.Text(t["input_area"], color=ft.Colors.WHITE, size=14),
             jan_input,
-            ft.ElevatedButton(text=t["search_btn"], on_click=lambda _: on_search(jan_input.value), width=float("inf"), bgcolor=BRAND_GREEN, color=ft.Colors.WHITE)
+            ft.Button(text=t["search_btn"], on_click=lambda _: on_search(jan_input.value), width=float("inf"), bgcolor=BRAND_GREEN, color=ft.Colors.WHITE)
         ], alignment=ft.MainAxisAlignment.CENTER, spacing=20)
     )
 
@@ -299,7 +296,6 @@ def get_settings_content(lang, on_toggle_lang):
         ], spacing=0), expand=True
     )
 
-# main 自体も非同期(async)化して初期化停止を防ぐ
 async def main(page: ft.Page):
     page.title = "Boycott App"
     page.padding = 0
@@ -378,7 +374,6 @@ async def main(page: ft.Page):
         elif target == "itemtype_widget":
             main_content_area.content = get_itemtype_content(lang, lambda cid: page.run_task(handle_category_select_async, cid))
         elif target == "list_widget":
-            # APIを叩く画面は非同期で中身を生成する
             main_content_area.content = await get_list_widget_content_async(lang, state["selected_category"])
         elif target == "scan_widget":
             main_content_area.content = get_scan_content(lang, lambda jan: page.run_task(handle_barcode_search_async, jan))
@@ -405,4 +400,4 @@ async def main(page: ft.Page):
     page.add(app_layout)
     await refresh_ui_async()
 
-ft.app(main)
+ft.run(main)
