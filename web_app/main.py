@@ -1,8 +1,15 @@
 import flet as ft
-import urllib.request
-import urllib.parse
 import json
+import asyncio
+import sys
 from datetime import datetime
+
+# ブラウザ環境(Pyodide)専用の通信モジュールを読み込む
+if sys.platform == "emscripten":
+    from pyodide.http import pyfetch
+else:
+    # ローカルPCテスト用の代替（PCで動かす場合のみ使用）
+    import urllib.request as urllib_req
 
 # カラー定義
 BRAND_GREEN = "#339966"
@@ -44,31 +51,44 @@ LANG_TEXTS = {
 SUPABASE_URL = "https://iktqvcqxrkabmbgjl.supabase.co"
 SUPABASE_ANON_KEY = "sb_publishable_z2zAh-vbopc9_ZBGE_wozg_YPrOuQ_x"
 
-# urllib.request を使った互換性の高い通信ロジック
-def connect_sheet(jan_code: str):
-    url = f"{SUPABASE_URL}/rest/v1/products?jan=eq.{urllib.parse.quote(jan_code)}"
-    req = urllib.request.Request(url)
-    req.add_header("apikey", SUPABASE_ANON_KEY)
-    req.add_header("Authorization", f"Bearer {SUPABASE_ANON_KEY}")
+# ブラウザ環境で絶対にクラッシュしない非同期の通信関数
+async def connect_sheet_async(jan_code: str):
+    url = f"{SUPABASE_URL}/rest/v1/products?jan=eq.{jan_code}"
+    headers = {"apikey": SUPABASE_ANON_KEY, "Authorization": f"Bearer {SUPABASE_ANON_KEY}"}
+    
     try:
-        with urllib.request.urlopen(req, timeout=10) as response:
-            data = json.loads(response.read().decode("utf-8"))
-            return data[0] if data else None
+        if sys.platform == "emscripten":
+            # ブラウザの Fetch API を使用
+            response = await pyfetch(url, method="GET", headers=headers)
+            if response.status == 200:
+                data = await response.json()
+                return data[0] if data else None
+        else:
+            # PCローカル環境用
+            req = urllib_req.Request(url, headers=headers)
+            with urllib_req.urlopen(req, timeout=10) as r:
+                data = json.loads(r.read().decode("utf-8"))
+                return data[0] if data else None
     except Exception as e:
         print(f"Database Error: {e}")
-        return None
+    return None
 
-def connect_sheet_all():
+async def connect_sheet_all_async():
     url = f"{SUPABASE_URL}/rest/v1/products"
-    req = urllib.request.Request(url)
-    req.add_header("apikey", SUPABASE_ANON_KEY)
-    req.add_header("Authorization", f"Bearer {SUPABASE_ANON_KEY}")
+    headers = {"apikey": SUPABASE_ANON_KEY, "Authorization": f"Bearer {SUPABASE_ANON_KEY}"}
+    
     try:
-        with urllib.request.urlopen(req, timeout=15) as response:
-            return json.loads(response.read().decode("utf-8"))
+        if sys.platform == "emscripten":
+            response = await pyfetch(url, method="GET", headers=headers)
+            if response.status == 200:
+                return await response.json()
+        else:
+            req = urllib_req.Request(url, headers=headers)
+            with urllib_req.urlopen(req, timeout=10) as r:
+                return json.loads(r.read().decode("utf-8"))
     except Exception as e:
         print(f"Database Error: {e}")
-        return []
+    return []
 
 def get_translated_name(lang, item_id):
     if lang not in ITEM_NAMES:
@@ -142,11 +162,10 @@ def get_itemtype_content(lang, on_select_category):
     
     list_items = []
     for cat in categories:
-        name = get_translated_name(lang, cat["id"])
         list_items.append(
             ft.ListTile(
                 leading=ft.Text(cat["icon"], size=24),
-                title=ft.Text(name, size=18, color="#262626", weight=ft.FontWeight.BOLD),
+                title=ft.Text(get_translated_name(lang, cat["id"]), size=18, color="#262626", weight=ft.FontWeight.BOLD),
                 on_click=lambda e, cid=cat["id"]: on_select_category(cid)
             )
         )
@@ -160,9 +179,9 @@ def get_itemtype_content(lang, on_select_category):
         ])
     )
 
-def get_list_widget_content(lang, category_id):
+async def get_list_widget_content_async(lang, category_id):
     t = LANG_TEXTS[lang]
-    products = connect_sheet_all()
+    products = await connect_sheet_all_async()
     
     cards = []
     for row in products:
@@ -171,7 +190,6 @@ def get_list_widget_content(lang, category_id):
             display_item = get_translated_name(lang, row.get("item", ""))
             area_text = t["area_label"].format(display_area) if display_area else ""
             msg = t["item_usage_label"].format(area_text, display_item)
-
             img_path = row.get("image_path") or "https://via.placeholder.com/150"
 
             cards.append(
@@ -206,10 +224,6 @@ def get_scan_content(lang, on_search):
     t = LANG_TEXTS[lang]
     jan_input = ft.TextField(label="JAN Code", hint_text="e.g. 4901234567890", keyboard_type=ft.KeyboardType.NUMBER)
     
-    def search_click(e):
-        if jan_input.value:
-            on_search(jan_input.value)
-
     return ft.Container(
         bgcolor=ft.Colors.BLACK,
         padding=20,
@@ -217,7 +231,7 @@ def get_scan_content(lang, on_search):
             ft.Text("Scan Simulator", size=22, color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD),
             ft.Text(t["input_area"], color=ft.Colors.WHITE, size=14),
             jan_input,
-            ft.ElevatedButton(text=t["search_btn"], on_click=search_click, width=float("inf"), bgcolor=BRAND_GREEN, color=ft.Colors.WHITE)
+            ft.ElevatedButton(text=t["search_btn"], on_click=lambda _: on_search(jan_input.value), width=float("inf"), bgcolor=BRAND_GREEN, color=ft.Colors.WHITE)
         ], alignment=ft.MainAxisAlignment.CENTER, spacing=20)
     )
 
@@ -285,7 +299,8 @@ def get_settings_content(lang, on_toggle_lang):
         ], spacing=0), expand=True
     )
 
-def main(page: ft.Page):
+# main 自体も非同期(async)化して初期化停止を防ぐ
+async def main(page: ft.Page):
     page.title = "Boycott App"
     page.padding = 0
     page.window_width = 400
@@ -302,14 +317,16 @@ def main(page: ft.Page):
     bottom_bar_container = ft.Container()
     app_layout = ft.Column([main_content_area, bottom_bar_container], spacing=0, expand=True)
 
-    def handle_barcode_search(jan_code):
+    async def handle_barcode_search_async(jan_code):
+        if not jan_code:
+            return
         t = LANG_TEXTS[state["lang"]]
         
         loading_dialog = ft.AlertDialog(title=ft.Text(t["searching"]), open=True)
         page.overlay.append(loading_dialog)
         page.update()
 
-        result = connect_sheet(jan_code)
+        result = await connect_sheet_async(jan_code)
         
         loading_dialog.open = False
         page.update()
@@ -341,50 +358,51 @@ def main(page: ft.Page):
                 ], compact=True, height=200),
                 open=True
             ))
-        refresh_ui()
+        await refresh_ui_async()
 
-    def handle_category_select(category_id):
+    async def handle_category_select_async(category_id):
         state["selected_category"] = category_id
         state["current_screen"] = "list_widget"
-        refresh_ui()
+        await refresh_ui_async()
 
-    def handle_clear_history(e):
+    async def handle_clear_history_async(e):
         state["history"] = []
-        refresh_ui()
+        await refresh_ui_async()
 
-    def refresh_ui():
+    async def refresh_ui_async():
         target = state["current_screen"]
         lang = state["lang"]
 
         if target == "main":
             main_content_area.content = get_main_content(lang)
         elif target == "itemtype_widget":
-            main_content_area.content = get_itemtype_content(lang, handle_category_select)
+            main_content_area.content = get_itemtype_content(lang, lambda cid: page.run_task(handle_category_select_async, cid))
         elif target == "list_widget":
-            main_content_area.content = get_list_widget_content(lang, state["selected_category"])
+            # APIを叩く画面は非同期で中身を生成する
+            main_content_area.content = await get_list_widget_content_async(lang, state["selected_category"])
         elif target == "scan_widget":
-            main_content_area.content = get_scan_content(lang, handle_barcode_search)
+            main_content_area.content = get_scan_content(lang, lambda jan: page.run_task(handle_barcode_search_async, jan))
         elif target == "history_widget":
-            main_content_area.content = get_history_content(lang, state["history"], handle_clear_history)
+            main_content_area.content = get_history_content(lang, state["history"], lambda e: page.run_task(handle_clear_history_async, e))
         elif target == "settings_widget":
-            main_content_area.content = get_settings_content(lang, toggle_language)
+            main_content_area.content = get_settings_content(lang, lambda val: page.run_task(toggle_language_async, val))
 
         bottom_bar_container.content = BottomMenuBar(
             current_screen=target,
-            on_change_screen=change_screen,
+            on_change_screen=lambda tgt: page.run_task(change_screen_async, tgt),
             lang=lang
         )
         page.update()
 
-    def change_screen(target_name):
+    async def change_screen_async(target_name):
         state["current_screen"] = target_name
-        refresh_ui()
+        await refresh_ui_async()
 
-    def toggle_language(is_english):
+    async def toggle_language_async(is_english):
         state["lang"] = "en" if is_english else "ja"
-        refresh_ui()
+        await refresh_ui_async()
 
     page.add(app_layout)
-    refresh_ui()
+    await refresh_ui_async()
 
-ft.run(main)
+ft.app(main)
