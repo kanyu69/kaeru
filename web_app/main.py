@@ -273,30 +273,31 @@ def get_history_content(lang, history_list, on_clear):
 
 def get_settings_content(lang, on_toggle_lang):
     t = LANG_TEXTS[lang]
+    # レイアウトバグを防ぐため最外郭のexpandを取り、Column構造を平坦化
     return ft.Container(
         bgcolor=LIGHT_GRAY,
+        padding=15,
         content=ft.Column([
-            ft.Container(content=ft.Text(t["title_settings"], color=ft.Colors.WHITE, size=20, weight=ft.FontWeight.BOLD), bgcolor=BRAND_GREEN, height=65, alignment="center"),
-            ft.Container(
-                padding=20,
-                content=ft.Column([
-                    ft.Container(
-                        bgcolor=ft.Colors.WHITE,
-                        border_radius=15,
-                        padding=20,
-                        content=ft.Column([
-                            ft.Row([ft.Text("🏠", size=20), ft.Text(t["lang_setting"], size=17, weight=ft.FontWeight.BOLD, color="#262626")], spacing=10),
-                            ft.Text(t["lang_desc"], size=12, color="#888888"),
-                            ft.Row([
-                                ft.Text("日本語", size=16, weight=ft.FontWeight.BOLD if lang == "ja" else ft.FontWeight.NORMAL, color=BRAND_GREEN if lang == "ja" else "#999999"),
-                                ft.Switch(value=(lang == "en"), active_track_color=BRAND_GREEN, on_change=lambda e: on_toggle_lang(e.control.value)),
-                                ft.Text("English", size=16, weight=ft.FontWeight.BOLD if lang == "en" else ft.FontWeight.NORMAL, color=BRAND_GREEN if lang == "en" else "#999999"),
-                            ], alignment=ft.MainAxisAlignment.CENTER, spacing=15)
-                        ], spacing=10)
-                    )
-                ])
+            ft.Text(t["title_settings"], size=22, weight=ft.FontWeight.BOLD, color="#262626"),
+            ft.Card(
+                content=ft.Container(
+                    padding=15,
+                    content=ft.Column([
+                        ft.Row([
+                            ft.Text("🌐", size=20),
+                            ft.Text(t["lang_setting"], size=16, weight=ft.FontWeight.BOLD, color="#262626")
+                        ], spacing=10),
+                        ft.Text(t["lang_desc"], size=12, color="#666666"),
+                        ft.Divider(height=10, color=ft.Colors.TRANSPARENT),
+                        ft.Row([
+                            ft.Text("日本語", size=14, weight=ft.FontWeight.BOLD if lang == "ja" else ft.FontWeight.NORMAL, color=BRAND_GREEN if lang == "ja" else "#888888"),
+                            ft.Switch(value=(lang == "en"), active_track_color=BRAND_GREEN, on_change=lambda e: on_toggle_lang(e.control.value)),
+                            ft.Text("English", size=14, weight=ft.FontWeight.BOLD if lang == "en" else ft.FontWeight.NORMAL, color=BRAND_GREEN if lang == "en" else "#888888"),
+                        ], alignment=ft.MainAxisAlignment.CENTER, spacing=10)
+                    ], spacing=5)
+                )
             )
-        ], spacing=0), expand=True
+        ], spacing=15)
     )
 
 async def main(page: ft.Page):
@@ -310,7 +311,7 @@ async def main(page: ft.Page):
         "lang": "ja",
         "selected_category": None,
         "history": [],
-        "all_products_cache": []  # リスト表示高速化＆タスク破棄防止用のキャッシュ
+        "all_products_cache": []
     }
 
     main_content_area = ft.Container(expand=True)
@@ -363,7 +364,6 @@ async def main(page: ft.Page):
     async def handle_category_select_async(category_id):
         state["selected_category"] = category_id
         state["current_screen"] = "list_widget"
-        # リスト画面へ切り替えるタイミングで非同期のDB一括取得を行う
         state["all_products_cache"] = await connect_sheet_all_async()
         await refresh_ui_async()
 
@@ -380,7 +380,6 @@ async def main(page: ft.Page):
         elif target == "itemtype_widget":
             main_content_area.content = get_itemtype_content(lang, lambda cid: page.run_task(handle_category_select_async, cid))
         elif target == "list_widget":
-            # タスク中断を避けるため、描画関数自体は同期関数にし、データは事前にキャッシュされたものを渡す
             main_content_area.content = get_list_widget_content(lang, state["selected_category"], state["all_products_cache"])
         elif target == "scan_widget":
             main_content_area.content = get_scan_content(lang, lambda jan: page.run_task(handle_barcode_search_async, jan))
