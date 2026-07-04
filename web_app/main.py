@@ -47,7 +47,7 @@ LANG_TEXTS = {
 }
 
 # Supabase 設定
-SUPABASE_URL = "https://iktqvcqxrkabmbgjl.supabase.co"
+SUPABASE_URL = "https://iktqvcqxrkabmgdmbgjl.supabase.co/"
 SUPABASE_ANON_KEY = "sb_publishable_z2zAh-vbopc9_ZBGE_wozg_YPrOuQ_x"
 
 # 非同期の通信関数
