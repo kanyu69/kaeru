@@ -176,10 +176,8 @@ def get_itemtype_content(lang, on_select_category):
         ])
     )
 
-async def get_list_widget_content_async(lang, category_id):
+def get_list_widget_content(lang, category_id, products):
     t = LANG_TEXTS[lang]
-    products = await connect_sheet_all_async()
-    
     cards = []
     for row in products:
         if row.get("item") == category_id:
@@ -259,7 +257,6 @@ def get_history_content(lang, history_list, on_clear):
         )
         
     if not cards:
-        # エラー箇所：ft.alignment.center を "center" 文字列指定に変更
         cards.append(ft.Container(content=ft.Text(t["no_history"], color="#262626"), alignment="center", padding=20))
 
     return ft.Container(
@@ -268,7 +265,7 @@ def get_history_content(lang, history_list, on_clear):
         content=ft.Column([
             ft.Row([
                 ft.Text(t["title_history"], size=22, weight=ft.FontWeight.BOLD, color="#262626"),
-                ft.TextButton(content=ft.Text(t["clear_history"], color=ft.Colors.RED), on_change=on_clear)
+                ft.TextButton(content=ft.Text(t["clear_history"], color=ft.Colors.RED), on_click=on_clear)
             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
             ft.Column(cards, scroll=ft.ScrollMode.AUTO, expand=True)
         ], expand=True)
@@ -312,7 +309,8 @@ async def main(page: ft.Page):
         "current_screen": "main",
         "lang": "ja",
         "selected_category": None,
-        "history": []
+        "history": [],
+        "all_products_cache": []  # リスト表示高速化＆タスク破棄防止用のキャッシュ
     }
 
     main_content_area = ft.Container(expand=True)
@@ -365,6 +363,8 @@ async def main(page: ft.Page):
     async def handle_category_select_async(category_id):
         state["selected_category"] = category_id
         state["current_screen"] = "list_widget"
+        # リスト画面へ切り替えるタイミングで非同期のDB一括取得を行う
+        state["all_products_cache"] = await connect_sheet_all_async()
         await refresh_ui_async()
 
     async def handle_clear_history_async(e):
@@ -380,7 +380,8 @@ async def main(page: ft.Page):
         elif target == "itemtype_widget":
             main_content_area.content = get_itemtype_content(lang, lambda cid: page.run_task(handle_category_select_async, cid))
         elif target == "list_widget":
-            main_content_area.content = await get_list_widget_content_async(lang, state["selected_category"])
+            # タスク中断を避けるため、描画関数自体は同期関数にし、データは事前にキャッシュされたものを渡す
+            main_content_area.content = get_list_widget_content(lang, state["selected_category"], state["all_products_cache"])
         elif target == "scan_widget":
             main_content_area.content = get_scan_content(lang, lambda jan: page.run_task(handle_barcode_search_async, jan))
         elif target == "history_widget":
