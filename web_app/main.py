@@ -34,7 +34,8 @@ LANG_TEXTS = {
         "input_area": "バーコードを入力してスキャンをテストできます", "lang_setting": "言語設定",
         "lang_desc": "つかう ことばを えらびます", "ready": "準備中", "search_btn": "検索", "searching": "検索中...",
         "not_registered": "未登録のバーコードです", "area_label": "⚠️{}産 ", "item_usage_label": "{}{}使用！⚠️",
-        "company": "会社名", "clear_history": "履歴をすべて削除", "no_history": "履歴はありません"
+        "company": "会社名", "clear_history": "履歴をすべて削除", "no_history": "履歴はありません",
+        "loading": "読み込み中...", "load_error": "データの取得に失敗しました。時間をおいて再度お試しください。"
     },
     "en": {
         "title_main": "TOP", "title_list": "List", "title_history": "History", "title_settings": "Settings",
@@ -42,55 +43,83 @@ LANG_TEXTS = {
         "input_area": "Enter Barcode to simulate scanning", "lang_setting": "Language",
         "lang_desc": "Choose your language", "ready": "Under Construction", "search_btn": "Search", "searching": "Searching...",
         "not_registered": "Not Registered", "area_label": "⚠️Origin: {} ", "item_usage_label": "{}{} used!⚠️",
-        "company": "Company", "clear_history": "Clear History", "no_history": "No history available"
+        "company": "Company", "clear_history": "Clear History", "no_history": "No history available",
+        "loading": "Loading...", "load_error": "Failed to load data. Please try again later."
     }
 }
 
 # Supabase 設定
-SUPABASE_URL = "https://iktqvcqxrkabmgdmbgjl.supabase.co/"
+# 注意: ここには "https://xxxx.supabase.co" というドメインのみを設定する。
+# 末尾に "/rest/v1/" 等のパスを含めないこと（コード側で自動的に付与されるため）。
+SUPABASE_URL = "https://iktqvcqxrkabmgdmbgjl.supabase.co"
 SUPABASE_ANON_KEY = "sb_publishable_z2zAh-vbopc9_ZBGE_wozg_YPrOuQ_x"
+
+# ネットワーク要求のタイムアウト秒数
+FETCH_TIMEOUT_SEC = 8
+
 
 # 非同期の通信関数
 async def connect_sheet_async(jan_code: str):
     url = f"{SUPABASE_URL}/rest/v1/products?jan=eq.{jan_code}"
     headers = {"apikey": SUPABASE_ANON_KEY, "Authorization": f"Bearer {SUPABASE_ANON_KEY}"}
-    
+
     try:
         if sys.platform == "emscripten":
-            response = await pyfetch(url, method="GET", headers=headers)
+            response = await asyncio.wait_for(
+                pyfetch(url, method="GET", headers=headers), timeout=FETCH_TIMEOUT_SEC
+            )
             if response.status == 200:
                 data = await response.json()
                 return data[0] if data else None
+            else:
+                print(f"Database Error: HTTP {response.status}")
         else:
             req = urllib_req.Request(url, headers=headers)
-            with urllib_req.urlopen(req, timeout=10) as r:
+            with urllib_req.urlopen(req, timeout=FETCH_TIMEOUT_SEC) as r:
                 data = json.loads(r.read().decode("utf-8"))
                 return data[0] if data else None
+    except asyncio.TimeoutError:
+        print("Database Error: request timed out (connect_sheet_async)")
     except Exception as e:
         print(f"Database Error: {e}")
     return None
 
+
 async def connect_sheet_all_async():
     url = f"{SUPABASE_URL}/rest/v1/products"
     headers = {"apikey": SUPABASE_ANON_KEY, "Authorization": f"Bearer {SUPABASE_ANON_KEY}"}
-    
+
     try:
         if sys.platform == "emscripten":
-            response = await pyfetch(url, method="GET", headers=headers)
+            response = await asyncio.wait_for(
+                pyfetch(url, method="GET", headers=headers), timeout=FETCH_TIMEOUT_SEC
+            )
             if response.status == 200:
-                return await response.json()
+                data = await response.json()
+                if isinstance(data, list):
+                    return data
+                print(f"Database Error: unexpected response: {data}")
+            else:
+                print(f"Database Error: HTTP {response.status}")
         else:
             req = urllib_req.Request(url, headers=headers)
-            with urllib_req.urlopen(req, timeout=10) as r:
-                return json.loads(r.read().decode("utf-8"))
+            with urllib_req.urlopen(req, timeout=FETCH_TIMEOUT_SEC) as r:
+                data = json.loads(r.read().decode("utf-8"))
+                if isinstance(data, list):
+                    return data
+                print(f"Database Error: unexpected response: {data}")
+    except asyncio.TimeoutError:
+        print("Database Error: request timed out (connect_sheet_all_async)")
     except Exception as e:
         print(f"Database Error: {e}")
     return []
+
 
 def get_translated_name(lang, item_id):
     if lang not in ITEM_NAMES:
         lang = "ja"
     return ITEM_NAMES[lang].get(item_id, item_id)
+
 
 class RoundButton(ft.Container):
     def __init__(self, label="", text_text="", on_click=None):
@@ -110,6 +139,7 @@ class RoundButton(ft.Container):
         self.height = 70
         self.on_click = on_click
 
+
 class BottomMenuBar(ft.Container):
     def __init__(self, current_screen, on_change_screen, lang):
         super().__init__()
@@ -117,6 +147,7 @@ class BottomMenuBar(ft.Container):
             lang = "ja"
 
         t = LANG_TEXTS[lang]
+
         def make_nav_btn(label, text, target):
             is_active = current_screen == target or (target == "itemtype_widget" and current_screen == "list_widget")
             return ft.GestureDetector(
@@ -126,6 +157,7 @@ class BottomMenuBar(ft.Container):
                 ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=2),
                 on_tap=lambda _: on_change_screen(target)
             )
+
         self.content = ft.Row([
             make_nav_btn("🏠", t["title_main"], "main"),
             make_nav_btn("📋", t["title_list"], "itemtype_widget"),
@@ -139,6 +171,7 @@ class BottomMenuBar(ft.Container):
         self.margin = ft.Margin(10, 0, 10, 15)
         self.padding = ft.Padding(10, 0, 10, 0)
 
+
 def get_main_content(lang):
     t = LANG_TEXTS[lang]
     return ft.Stack([
@@ -149,6 +182,7 @@ def get_main_content(lang):
         ], spacing=15))
     ], expand=True)
 
+
 def get_itemtype_content(lang, on_select_category):
     categories = [
         {"id": "ITEM_LEMON", "icon": "🍋"},
@@ -156,7 +190,7 @@ def get_itemtype_content(lang, on_select_category):
         {"id": "ITEM_GRAPEFRUIT", "icon": "🍊"},
         {"id": "ITEM_ZAKURO", "icon": "🍎"}
     ]
-    
+
     list_items = []
     for cat in categories:
         list_items.append(
@@ -176,15 +210,28 @@ def get_itemtype_content(lang, on_select_category):
         ])
     )
 
+
 def get_list_widget_content(lang, category_id, products):
     t = LANG_TEXTS[lang]
     cards = []
 
     if products is None:
-        # 読み込み中
-        cards.append(ft.Text("Loading...", color="#262626"))
+        # データ取得中
+        cards.append(
+            ft.Container(
+                content=ft.Row(
+                    [ft.ProgressRing(width=20, height=20, stroke_width=2), ft.Text(t["loading"], color="#262626")],
+                    alignment=ft.MainAxisAlignment.CENTER,
+                    spacing=10
+                ),
+                padding=20,
+                alignment="center"
+            )
+        )
     else:
         for row in products:
+            if not isinstance(row, dict):
+                continue
             if row.get("item") == category_id:
                 display_area = get_translated_name(lang, row.get("area", ""))
                 display_item = get_translated_name(lang, row.get("item", ""))
@@ -220,10 +267,11 @@ def get_list_widget_content(lang, category_id, products):
         ], expand=True)
     )
 
+
 def get_scan_content(lang, on_search):
     t = LANG_TEXTS[lang]
     jan_input = ft.TextField(label="JAN Code", hint_text="e.g. 4901234567890", keyboard_type=ft.KeyboardType.NUMBER)
-    
+
     return ft.Container(
         bgcolor=ft.Colors.BLACK,
         padding=20,
@@ -240,9 +288,10 @@ def get_scan_content(lang, on_search):
         ], alignment=ft.MainAxisAlignment.CENTER, spacing=20)
     )
 
+
 def get_history_content(lang, history_list, on_clear):
     t = LANG_TEXTS[lang]
-    
+
     cards = []
     for item in history_list:
         cards.append(
@@ -260,7 +309,7 @@ def get_history_content(lang, history_list, on_clear):
                 )
             )
         )
-        
+
     if not cards:
         cards.append(ft.Container(content=ft.Text(t["no_history"], color="#262626"), alignment="center", padding=20))
 
@@ -276,9 +325,9 @@ def get_history_content(lang, history_list, on_clear):
         ], expand=True)
     )
 
+
 def get_settings_content(lang, on_toggle_lang):
     t = LANG_TEXTS[lang]
-    # レイアウトバグを防ぐため最外郭のexpandを取り、Column構造を平坦化
     return ft.Container(
         bgcolor=LIGHT_GRAY,
         padding=15,
@@ -305,6 +354,7 @@ def get_settings_content(lang, on_toggle_lang):
         ], spacing=15)
     )
 
+
 async def main(page: ft.Page):
     page.title = "Boycott App"
     page.padding = 0
@@ -316,7 +366,7 @@ async def main(page: ft.Page):
         "lang": "ja",
         "selected_category": None,
         "history": [],
-        "all_products_cache": []
+        "all_products_cache": None
     }
 
     main_content_area = ft.Container(expand=True)
@@ -327,13 +377,13 @@ async def main(page: ft.Page):
         if not jan_code:
             return
         t = LANG_TEXTS[state["lang"]]
-        
+
         loading_dialog = ft.AlertDialog(title=ft.Text(t["searching"]), open=True)
         page.overlay.append(loading_dialog)
         page.update()
 
         result = await connect_sheet_async(jan_code)
-        
+
         loading_dialog.open = False
         page.update()
 
@@ -367,18 +417,30 @@ async def main(page: ft.Page):
         await refresh_ui_async()
 
     async def handle_category_select_async(category_id):
+        # 1. まず画面を切り替えて「読み込み中」を即座に表示する
         state["selected_category"] = category_id
         state["current_screen"] = "list_widget"
-        state["all_products_cache"] = None  # まだ読み込み中とわかるようにする
-        await refresh_ui_async()  # ← 先に画面を切り替えて「読み込み中」を見せる
-    
+        state["all_products_cache"] = None
         try:
-            state["all_products_cache"] = await connect_sheet_all_async()
+            await refresh_ui_async()
+        except Exception as e:
+            print(f"refresh_ui_async error (loading state): {e}")
+            return
+
+        # 2. データ取得（失敗してもここで必ず終わらせる。無限に固まらないようにタイムアウト付き）
+        try:
+            products = await connect_sheet_all_async()
         except Exception as e:
             print(f"handle_category_select_async error: {e}")
-            state["all_products_cache"] = []
-    
-        await refresh_ui_async()  # 取得後に再描画
+            products = []
+
+        state["all_products_cache"] = products
+
+        # 3. 取得結果で再描画
+        try:
+            await refresh_ui_async()
+        except Exception as e:
+            print(f"refresh_ui_async error (list_widget): {e}")
 
     async def handle_clear_history_async(e):
         state["history"] = []
@@ -418,5 +480,6 @@ async def main(page: ft.Page):
 
     page.add(app_layout)
     await refresh_ui_async()
+
 
 ft.run(main)
