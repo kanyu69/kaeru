@@ -179,32 +179,37 @@ def get_itemtype_content(lang, on_select_category):
 def get_list_widget_content(lang, category_id, products):
     t = LANG_TEXTS[lang]
     cards = []
-    for row in products:
-        if row.get("item") == category_id:
-            display_area = get_translated_name(lang, row.get("area", ""))
-            display_item = get_translated_name(lang, row.get("item", ""))
-            area_text = t["area_label"].format(display_area) if display_area else ""
-            msg = t["item_usage_label"].format(area_text, display_item)
-            img_path = row.get("image_path") or "https://via.placeholder.com/150"
 
-            cards.append(
-                ft.Card(
-                    content=ft.Container(
-                        padding=10,
-                        content=ft.Row([
-                            ft.Image(src=img_path, width=60, height=60, fit=ft.ImageFit.CONTAIN),
-                            ft.Column([
-                                ft.Text(row.get("product_name", ""), size=16, weight=ft.FontWeight.BOLD, color="#262626"),
-                                ft.Text(f"{t['company']}: {row.get('company_name', '')}", size=12, color="#555555"),
-                                ft.Text(msg, size=12, color=ft.Colors.RED_600, weight=ft.FontWeight.BOLD),
-                            ], expand=True)
-                        ])
+    if products is None:
+        # 読み込み中
+        cards.append(ft.Text("Loading...", color="#262626"))
+    else:
+        for row in products:
+            if row.get("item") == category_id:
+                display_area = get_translated_name(lang, row.get("area", ""))
+                display_item = get_translated_name(lang, row.get("item", ""))
+                area_text = t["area_label"].format(display_area) if display_area else ""
+                msg = t["item_usage_label"].format(area_text, display_item)
+                img_path = row.get("image_path") or "https://via.placeholder.com/150"
+
+                cards.append(
+                    ft.Card(
+                        content=ft.Container(
+                            padding=10,
+                            content=ft.Row([
+                                ft.Image(src=img_path, width=60, height=60, fit=ft.ImageFit.CONTAIN),
+                                ft.Column([
+                                    ft.Text(row.get("product_name", ""), size=16, weight=ft.FontWeight.BOLD, color="#262626"),
+                                    ft.Text(f"{t['company']}: {row.get('company_name', '')}", size=12, color="#555555"),
+                                    ft.Text(msg, size=12, color=ft.Colors.RED_600, weight=ft.FontWeight.BOLD),
+                                ], expand=True)
+                            ])
+                        )
                     )
                 )
-            )
-            
-    if not cards:
-        cards.append(ft.Text("No items found.", color="#262626"))
+
+        if not cards:
+            cards.append(ft.Text("No items found.", color="#262626"))
 
     return ft.Container(
         bgcolor=LIGHT_GRAY,
@@ -364,8 +369,16 @@ async def main(page: ft.Page):
     async def handle_category_select_async(category_id):
         state["selected_category"] = category_id
         state["current_screen"] = "list_widget"
-        state["all_products_cache"] = await connect_sheet_all_async()
-        await refresh_ui_async()
+        state["all_products_cache"] = None  # まだ読み込み中とわかるようにする
+        await refresh_ui_async()  # ← 先に画面を切り替えて「読み込み中」を見せる
+    
+        try:
+            state["all_products_cache"] = await connect_sheet_all_async()
+        except Exception as e:
+            print(f"handle_category_select_async error: {e}")
+            state["all_products_cache"] = []
+    
+        await refresh_ui_async()  # 取得後に再描画
 
     async def handle_clear_history_async(e):
         state["history"] = []
