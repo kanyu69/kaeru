@@ -430,6 +430,7 @@ async def main(page: ft.Page):
         # 2. データ取得（失敗してもここで必ず終わらせる。無限に固まらないようにタイムアウト付き）
         try:
             products = await connect_sheet_all_async()
+            print(f"DEBUG products: {products}")  # ← この行を追加
         except Exception as e:
             print(f"handle_category_select_async error: {e}")
             products = []
