@@ -356,21 +356,28 @@ def get_settings_content(lang, on_toggle_lang):
 
 
 async def main(page: ft.Page):
-    page.title = "Boycott App"
-    page.padding = 0
-
-
-    state = {
-        "current_screen": "main",
-        "lang": "ja",
-        "selected_category": None,
-        "history": [],
-        "all_products_cache": None
-    }
-
-    main_content_area = ft.Container(expand=True)
-    bottom_bar_container = ft.Container()
-    app_layout = ft.Column([main_content_area, bottom_bar_container], spacing=0, expand=True)
+    print("MAIN STARTED")
+    try:
+        page.title = "Boycott App"
+        page.padding = 0
+    
+    
+        state = {
+            "current_screen": "main",
+            "lang": "ja",
+            "selected_category": None,
+            "history": [],
+            "all_products_cache": None
+        }
+        print("STATE OK")
+        main_content_area = ft.Container(expand=True)
+        bottom_bar_container = ft.Container()
+        app_layout = ft.Column([main_content_area, bottom_bar_container], spacing=0, expand=True)
+    
+    except Exception as e:
+        print(f"MAIN ERROR: {e}")
+        import traceback
+        traceback.print_exc()
 
     async def handle_barcode_search_async(jan_code):
         if not jan_code:
