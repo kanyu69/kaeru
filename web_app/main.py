@@ -30,7 +30,7 @@ ITEM_NAMES = {
 LANG_TEXTS = {
     "ja": {
         "title_main": "ホーム", "title_list": "リスト", "title_history": "履歴", "title_settings": "設定",
-        "important_notice": "【重要】新機能が追加されました！", "submit_info": "ボイコット商品情報をお寄せください",
+        "important_notice": "【重要】新機能が追加されました！v2", "submit_info": "ボイコット商品情報をお寄せください",
         "input_area": "バーコードを入力してスキャンをテストできます", "lang_setting": "言語設定",
         "lang_desc": "つかう ことばを えらびます", "ready": "準備中", "search_btn": "検索", "searching": "検索中...",
         "not_registered": "未登録のバーコードです", "area_label": "⚠️{}産 ", "item_usage_label": "{}{}使用！⚠️",
@@ -358,8 +358,7 @@ def get_settings_content(lang, on_toggle_lang):
 async def main(page: ft.Page):
     page.title = "Boycott App"
     page.padding = 0
-    page.window_width = 400
-    page.window_height = 800
+
 
     state = {
         "current_screen": "main",
