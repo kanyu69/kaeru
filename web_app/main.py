@@ -357,27 +357,23 @@ def get_settings_content(lang, on_toggle_lang):
 
 async def main(page: ft.Page):
     print("MAIN STARTED")
-    try:
-        page.title = "Boycott App"
-        page.padding = 0
-    
-    
-        state = {
-            "current_screen": "main",
-            "lang": "ja",
-            "selected_category": None,
-            "history": [],
-            "all_products_cache": None
-        }
-        print("STATE OK")
-        main_content_area = ft.Container(expand=True)
-        bottom_bar_container = ft.Container()
-        app_layout = ft.Column([main_content_area, bottom_bar_container], spacing=0, expand=True)
-    
-    except Exception as e:
-        print(f"MAIN ERROR: {e}")
-        import traceback
-        traceback.print_exc()
+
+    page.title = "Boycott App"
+    page.padding = 0
+
+    state = {
+        "current_screen": "main",
+        "lang": "ja",
+        "selected_category": None,
+        "history": [],
+        "all_products_cache": None
+    }
+    print("STATE OK")
+
+    main_content_area = ft.Container(expand=True)
+    bottom_bar_container = ft.Container()
+    app_layout = ft.Column([main_content_area, bottom_bar_container], spacing=0, expand=True)
+    print("LAYOUT OK")
 
     async def handle_barcode_search_async(jan_code):
         if not jan_code:
@@ -436,7 +432,7 @@ async def main(page: ft.Page):
         # 2. データ取得（失敗してもここで必ず終わらせる。無限に固まらないようにタイムアウト付き）
         try:
             products = await connect_sheet_all_async()
-            print(f"DEBUG products: {products}")  # ← この行を追加
+            print(f"DEBUG products: {products}")
         except Exception as e:
             print(f"handle_category_select_async error: {e}")
             products = []
@@ -456,26 +452,42 @@ async def main(page: ft.Page):
     async def refresh_ui_async():
         target = state["current_screen"]
         lang = state["lang"]
+        print(f"REFRESH_UI target={target}")
 
-        if target == "main":
-            main_content_area.content = get_main_content(lang)
-        elif target == "itemtype_widget":
-            main_content_area.content = get_itemtype_content(lang, lambda cid: page.run_task(handle_category_select_async, cid))
-        elif target == "list_widget":
-            main_content_area.content = get_list_widget_content(lang, state["selected_category"], state["all_products_cache"])
-        elif target == "scan_widget":
-            main_content_area.content = get_scan_content(lang, lambda jan: page.run_task(handle_barcode_search_async, jan))
-        elif target == "history_widget":
-            main_content_area.content = get_history_content(lang, state["history"], lambda e: page.run_task(handle_clear_history_async, e))
-        elif target == "settings_widget":
-            main_content_area.content = get_settings_content(lang, lambda val: page.run_task(toggle_language_async, val))
+        try:
+            if target == "main":
+                main_content_area.content = get_main_content(lang)
+            elif target == "itemtype_widget":
+                main_content_area.content = get_itemtype_content(lang, lambda cid: page.run_task(handle_category_select_async, cid))
+            elif target == "list_widget":
+                main_content_area.content = get_list_widget_content(lang, state["selected_category"], state["all_products_cache"])
+            elif target == "scan_widget":
+                main_content_area.content = get_scan_content(lang, lambda jan: page.run_task(handle_barcode_search_async, jan))
+            elif target == "history_widget":
+                main_content_area.content = get_history_content(lang, state["history"], lambda e: page.run_task(handle_clear_history_async, e))
+            elif target == "settings_widget":
+                main_content_area.content = get_settings_content(lang, lambda val: page.run_task(toggle_language_async, val))
+            print(f"REFRESH_UI content built for {target}")
 
-        bottom_bar_container.content = BottomMenuBar(
-            current_screen=target,
-            on_change_screen=lambda tgt: page.run_task(change_screen_async, tgt),
-            lang=lang
-        )
-        page.update()
+            bottom_bar_container.content = BottomMenuBar(
+                current_screen=target,
+                on_change_screen=lambda tgt: page.run_task(change_screen_async, tgt),
+                lang=lang
+            )
+            print("REFRESH_UI bottom bar built")
+        except Exception as e:
+            print(f"REFRESH_UI ERROR while building content: {e}")
+            import traceback
+            traceback.print_exc()
+            return
+
+        try:
+            page.update()
+            print("REFRESH_UI page.update() done")
+        except Exception as e:
+            print(f"REFRESH_UI ERROR on page.update(): {e}")
+            import traceback
+            traceback.print_exc()
 
     async def change_screen_async(target_name):
         state["current_screen"] = target_name
@@ -485,8 +497,25 @@ async def main(page: ft.Page):
         state["lang"] = "en" if is_english else "ja"
         await refresh_ui_async()
 
-    page.add(app_layout)
-    await refresh_ui_async()
+    print("HANDLERS DEFINED")
+
+    try:
+        print("BEFORE PAGE ADD")
+        page.add(app_layout)
+        print("AFTER PAGE ADD")
+    except Exception as e:
+        print(f"PAGE ADD ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+        return
+
+    try:
+        await refresh_ui_async()
+        print("AFTER REFRESH UI (initial)")
+    except Exception as e:
+        print(f"INITIAL REFRESH ERROR: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 ft.run(main)
