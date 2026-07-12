@@ -177,7 +177,7 @@ def get_main_content(lang):
     return ft.Stack([
         ft.Container(bgcolor=BRAND_GREEN, expand=True),
         ft.Container(
-            bgcolor=ft.Colors.TRANSPARENT,  # ← 追加: 未指定だとテーマの既定背景色(灰色)で覆われてしまうため
+            bgcolor=ft.Colors.TRANSPARENT,
             padding=20,
             content=ft.Column([
                 ft.Container(
@@ -220,6 +220,7 @@ def get_itemtype_content(lang, on_select_category):
     return ft.Container(
         bgcolor=LIGHT_GRAY,
         padding=10,
+        expand=True,
         content=ft.Column([
             ft.Text(LANG_TEXTS[lang]["title_list"], size=22, weight=ft.FontWeight.BOLD, color="#262626"),
             ft.Card(content=ft.Container(content=ft.Column(list_items), padding=10))
@@ -277,6 +278,7 @@ def get_list_widget_content(lang, category_id, products):
     return ft.Container(
         bgcolor=LIGHT_GRAY,
         padding=10,
+        expand=True,
         content=ft.Column([
             ft.Text(f"{get_translated_name(lang, category_id)} {t['title_list']}", size=20, weight=ft.FontWeight.BOLD, color="#262626"),
             ft.Column(cards, scroll=ft.ScrollMode.AUTO, expand=True)
@@ -291,6 +293,7 @@ def get_scan_content(lang, on_search):
     return ft.Container(
         bgcolor=ft.Colors.BLACK,
         padding=20,
+        expand=True,
         content=ft.Column([
             ft.Text("Scan Simulator", size=22, color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD),
             ft.Text(t["input_area"], color=ft.Colors.WHITE, size=14),
@@ -332,6 +335,7 @@ def get_history_content(lang, history_list, on_clear):
     return ft.Container(
         bgcolor=LIGHT_GRAY,
         padding=10,
+        expand=True,
         content=ft.Column([
             ft.Row([
                 ft.Text(t["title_history"], size=22, weight=ft.FontWeight.BOLD, color="#262626"),
@@ -347,6 +351,7 @@ def get_settings_content(lang, on_toggle_lang):
     return ft.Container(
         bgcolor=LIGHT_GRAY,
         padding=15,
+        expand=True,
         content=ft.Column([
             ft.Text(t["title_settings"], size=22, weight=ft.FontWeight.BOLD, color="#262626"),
             ft.Card(
@@ -383,7 +388,8 @@ async def main(page: ft.Page):
         "all_products_cache": None
     }
 
-    main_content_area = ft.Container(expand=True)
+    # bgcolor=TRANSPARENT を明示指定（未指定だと既定の灰色サーフェスが見えてしまう対策）
+    main_content_area = ft.Container(expand=True, bgcolor=ft.Colors.TRANSPARENT)
     bottom_bar_container = ft.Container()
     app_layout = ft.Column([main_content_area, bottom_bar_container], spacing=0, expand=True)
 
