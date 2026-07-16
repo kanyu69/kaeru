@@ -186,7 +186,7 @@ def get_main_content(lang):
                     border_radius=15,
                     padding=10,
                     height=80,
-                    alignment="center_left"
+                    alignment=ft.alignment.center_left
                 ),
                 ft.Button(
                     content=ft.Text(t["submit_info"]),
@@ -242,7 +242,7 @@ def get_list_widget_content(lang, category_id, products):
                     spacing=10
                 ),
                 padding=20,
-                alignment="center"
+                alignment=ft.alignment.center
             )
         )
     else:
@@ -330,7 +330,7 @@ def get_history_content(lang, history_list, on_clear):
         )
 
     if not cards:
-        cards.append(ft.Container(content=ft.Text(t["no_history"], color="#262626"), alignment="center", padding=20))
+        cards.append(ft.Container(content=ft.Text(t["no_history"], color="#262626"), alignment=ft.alignment.center, padding=20))
 
     return ft.Container(
         bgcolor=LIGHT_GRAY,
