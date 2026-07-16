@@ -186,6 +186,445 @@ def get_main_content(lang):
                     border_radius=15,
                     padding=10,
                     height=80,
+                    alignment=ft.Alignment.CENTER_LEFT
+                ),
+                ft.Button(
+                    content=ft.Text(t["submit_info"]),
+                    height=55,
+                    width=float("inf"),
+                    style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10))
+                ),
+            ], spacing=15)
+        )
+    ], expand=True)
+
+
+def get_itemtype_content(lang, on_select_category):
+    categories = [
+        {"id": "ITEM_LEMON", "icon": "🍋"},
+        {"id": "ITEM_ORANGE", "icon": "🍊"},
+        {"id": "ITEM_GRAPEFRUIT", "icon": "🍊"},
+        {"id": "ITEM_ZAKURO", "icon": "🍎"}
+    ]
+
+    list_items = []
+    for cat in categories:
+        list_items.append(
+            ft.ListTile(
+                leading=ft.Text(cat["icon"], size=24),
+                title=ft.Text(get_translated_name(lang, cat["id"]), size=18, color="#262626", weight=ft.FontWeight.BOLD),
+                on_click=lambda e, cid=cat["id"]: on_select_category(cid)
+            )
+        )
+
+    return ft.Container(
+        bgcolor=LIGHT_GRAY,
+        padding=10,
+        expand=True,
+        content=ft.Column([
+            ft.Text(LANG_TEXTS[lang]["title_list"], size=22, weight=ft.FontWeight.BOLD, color="#262626"),
+            ft.Card(content=ft.Container(content=ft.Column(list_items), padding=10))
+        ])
+    )
+
+
+def get_list_widget_content(lang, category_id, products):
+    t = LANG_TEXTS[lang]
+    cards = []
+
+    if products is None:
+        # データ取得中
+        cards.append(
+            ft.Container(
+                content=ft.Row(
+                    [ft.ProgressRing(width=20, height=20, stroke_width=2), ft.Text(t["loading"], color="#262626")],
+                    alignment=ft.MainAxisAlignment.CENTER,
+                    spacing=10
+                ),
+                padding=20,
+                alignment=ft.Alignment.CENTER
+            )
+        )
+    else:
+        for row in products:
+            if not isinstance(row, dict):
+                continue
+            if row.get("item") == category_id:
+                display_area = get_translated_name(lang, row.get("area", ""))
+                display_item = get_translated_name(lang, row.get("item", ""))
+                area_text = t["area_label"].format(display_area) if display_area else ""
+                msg = t["item_usage_label"].format(area_text, display_item)
+                img_path = row.get("image_path") or "https://via.placeholder.com/150"
+
+                cards.append(
+                    ft.Card(
+                        content=ft.Container(
+                            padding=10,
+                            content=ft.Row([
+                                ft.Image(src=img_path, width=60, height=60, fit=ft.ImageFit.CONTAIN),
+                                ft.Column([
+                                    ft.Text(row.get("product_name", ""), size=16, weight=ft.FontWeight.BOLD, color="#262626"),
+                                    ft.Text(f"{t['company']}: {row.get('company_name', '')}", size=12, color="#555555"),
+                                    ft.Text(msg, size=12, color=ft.Colors.RED_600, weight=ft.FontWeight.BOLD),
+                                ], expand=True)
+                            ])
+                        )
+                    )
+                )
+
+        if not cards:
+            cards.append(ft.Text("No items found.", color="#262626"))
+
+    return ft.Container(
+        bgcolor=LIGHT_GRAY,
+        padding=10,
+        expand=True,
+        content=ft.Column([
+            ft.Text(f"{get_translated_name(lang, category_id)} {t['title_list']}", size=20, weight=ft.FontWeight.BOLD, color="#262626"),
+            ft.Column(cards, scroll=ft.ScrollMode.AUTO, expand=True)
+        ], expand=True)
+    )
+
+
+def get_scan_content(lang, on_search):
+    t = LANG_TEXTS[lang]
+    jan_input = ft.TextField(label="JAN Code", hint_text="e.g. 4901234567890", keyboard_type=ft.KeyboardType.NUMBER)
+
+    return ft.Container(
+        bgcolor=ft.Colors.BLACK,
+        padding=20,
+        expand=True,
+        content=ft.Column([
+            ft.Text("Scan Simulator", size=22, color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD),
+            ft.Text(t["input_area"], color=ft.Colors.WHITE, size=14),
+            jan_input,
+            ft.Button(
+                content=ft.Text(t["search_btn"], color=ft.Colors.WHITE),
+                on_click=lambda _: on_search(jan_input.value),
+                width=float("inf"),
+                style=ft.ButtonStyle(bgcolor=BRAND_GREEN)
+            )
+        ], alignment=ft.MainAxisAlignment.CENTER, spacing=20)
+    )
+
+
+def get_history_content(lang, history_list, on_clear):
+    t = LANG_TEXTS[lang]
+
+    cards = []
+    for item in history_list:
+        cards.append(
+            ft.Card(
+                content=ft.Container(
+                    padding=10,
+                    content=ft.Row([
+                        ft.Image(src=item['image_path'], width=50, height=50, fit=ft.ImageFit.CONTAIN),
+                        ft.Column([
+                            ft.Text(item['product_name'], size=14, weight=ft.FontWeight.BOLD, color="#262626"),
+                            ft.Text(item['item_usage'], size=12, color=ft.Colors.RED_600),
+                            ft.Text(item['scan_time'], size=10, color="#888888")
+                        ], expand=True)
+                    ])
+                )
+            )
+        )
+
+    if not cards:
+        cards.append(ft.Container(content=ft.Text(t["no_history"], color="#262626"), alignment=ft.Alignment.CENTER, padding=20))
+
+    return ft.Container(
+        bgcolor=LIGHT_GRAY,
+        padding=10,
+        expand=True,
+        content=ft.Column([
+            ft.Row([
+                ft.Text(t["title_history"], size=22, weight=ft.FontWeight.BOLD, color="#262626"),
+                ft.TextButton(content=ft.Text(t["clear_history"], color=ft.Colors.RED), on_click=on_clear)
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            ft.Column(cards, scroll=ft.ScrollMode.AUTO, expand=True)
+        ], expand=True)
+    )
+
+
+def get_settings_content(lang, on_toggle_lang):
+    t = LANG_TEXTS[lang]
+    return ft.Container(
+        bgcolor=LIGHT_GRAY,
+        padding=15,
+        expand=True,
+        content=ft.Column([
+            ft.Text(t["title_settings"], size=22, weight=ft.FontWeight.BOLD, color="#262626"),
+            ft.Card(
+                content=ft.Container(
+                    padding=15,
+                    content=ft.Column([
+                        ft.Row([
+                            ft.Text("🌐", size=20),
+                            ft.Text(t["lang_setting"], size=16, weight=ft.FontWeight.BOLD, color="#262626")
+                        ], spacing=10),
+                        ft.Text(t["lang_desc"], size=12, color="#666666"),
+                        ft.Divider(height=10, color=ft.Colors.TRANSPARENT),
+                        ft.Row([
+                            ft.Text("日本語", size=14, weight=ft.FontWeight.BOLD if lang == "ja" else ft.FontWeight.NORMAL, color=BRAND_GREEN if lang == "ja" else "#888888"),
+                            ft.Switch(value=(lang == "en"), active_track_color=BRAND_GREEN, on_change=lambda e: on_toggle_lang(e.control.value)),
+                            ft.Text("English", size=14, weight=ft.FontWeight.BOLD if lang == "en" else ft.FontWeight.NORMAL, color=BRAND_GREEN if lang == "en" else "#888888"),
+                        ], alignment=ft.MainAxisAlignment.CENTER, spacing=10)
+                    ], spacing=5)
+                )
+            )
+        ], spacing=15)
+    )
+
+
+async def main(page: ft.Page):
+    page.title = "Boycott App"
+    page.padding = 0
+
+    state = {
+        "current_screen": "main",
+        "lang": "ja",
+        "selected_category": None,
+        "history": [],
+        "all_products_cache": None
+    }
+
+    # bgcolor=TRANSPARENT を明示指定（未指定だと既定の灰色サーフェスが見えてしまう対策）
+    main_content_area = ft.Container(expand=True, bgcolor=ft.Colors.TRANSPARENT)
+    bottom_bar_container = ft.Container()
+    app_layout = ft.Column([main_content_area, bottom_bar_container], spacing=0, expand=True)
+
+    async def handle_barcode_search_async(jan_code):
+        if not jan_code:
+            return
+        t = LANG_TEXTS[state["lang"]]
+
+        loading_dialog = ft.AlertDialog(title=ft.Text(t["searching"]), open=True)
+        page.overlay.append(loading_dialog)
+        page.update()
+
+        result = await connect_sheet_async(jan_code)
+
+        loading_dialog.open = False
+        page.update()
+
+        if not result:
+            page.overlay.append(ft.AlertDialog(title=ft.Text(t["not_registered"]), content=ft.Text(f"JAN: {jan_code}"), open=True))
+        else:
+            display_area = get_translated_name(state["lang"], result.get("area", ""))
+            display_item = get_translated_name(state["lang"], result.get("item", ""))
+            area_text = t["area_label"].format(display_area) if display_area else ""
+            msg = t["item_usage_label"].format(area_text, display_item)
+            img_path = result.get("image_path") or "https://via.placeholder.com/150"
+
+            now = datetime.now().strftime('%Y/%m/%d %H:%M')
+            new_entry = {
+                'product_name': str(result.get("product_name")),
+                'item_usage': msg,
+                'image_path': img_path,
+                'scan_time': now
+            }
+            state["history"].insert(0, new_entry)
+
+            page.overlay.append(ft.AlertDialog(
+                title=ft.Text(result.get("product_name")),
+                content=ft.Column([
+                    ft.Image(src=img_path, width=100, height=100),
+                    ft.Text(f"{t['company']}: {result.get('company_name')}"),
+                    ft.Text(msg, color=ft.Colors.RED_600, weight=ft.FontWeight.BOLD)
+                ], compact=True, height=200),
+                open=True
+            ))
+        await refresh_ui_async()
+
+    async def handle_category_select_async(category_id):
+        # 1. まず画面を切り替えて「読み込み中」を即座に表示する
+        state["selected_category"] = category_id
+        state["current_screen"] = "list_widget"
+        state["all_products_cache"] = None
+        try:
+            await refresh_ui_async()
+        except Exception as e:
+            print(f"refresh_ui_async error (loading state): {e}")
+            return
+
+        # 2. データ取得（失敗してもここで必ず終わらせる。タイムアウト付き）
+        try:
+            products = await connect_sheet_all_async()
+        except Exception as e:
+            print(f"handle_category_select_async error: {e}")
+            products = []
+
+        state["all_products_cache"] = products
+
+        # 3. 取得結果で再描画
+        try:
+            await refresh_ui_async()
+        except Exception as e:
+            print(f"refresh_ui_async error (list_widget): {e}")
+
+    async def handle_clear_history_async(e):
+        state["history"] = []
+        await refresh_ui_async()
+
+    async def refresh_ui_async():
+        target = state["current_screen"]
+        lang = state["lang"]
+
+        if target == "main":
+            main_content_area.content = get_main_content(lang)
+        elif target == "itemtype_widget":
+            main_content_area.content = get_itemtype_content(lang, lambda cid: page.run_task(handle_category_select_async, cid))
+        elif target == "list_widget":
+            main_content_area.content = get_list_widget_content(lang, state["selected_category"], state["all_products_cache"])
+        elif target == "scan_widget":
+            main_content_area.content = get_scan_content(lang, lambda jan: page.run_task(handle_barcode_search_async, jan))
+        elif target == "history_widget":
+            main_content_area.content = get_history_content(lang, state["history"], lambda e: page.run_task(handle_clear_history_async, e))
+        elif target == "settings_widget":
+            main_content_area.content = get_settings_content(lang, lambda val: page.run_task(toggle_language_async, val))
+
+        bottom_bar_container.content = BottomMenuBar(
+            current_screen=target,
+            on_change_screen=lambda tgt: page.run_task(change_screen_async, tgt),
+            lang=lang
+        )
+        page.update()
+
+    async def change_screen_async(target_name):
+        state["current_screen"] = target_name
+        await refresh_ui_async()
+
+    async def toggle_language_async(is_english):
+        state["lang"] = "en" if is_english else "ja"
+        await refresh_ui_async()
+
+    page.add(app_layout)
+    await refresh_ui_async()
+
+
+ft.run(main)    try:
+        if sys.platform == "emscripten":
+            response = await asyncio.wait_for(
+                pyfetch(url, method="GET", headers=headers), timeout=FETCH_TIMEOUT_SEC
+            )
+            if response.status == 200:
+                data = await response.json()
+                return data[0] if data else None
+            else:
+                print(f"Database Error: HTTP {response.status}")
+        else:
+            req = urllib_req.Request(url, headers=headers)
+            with urllib_req.urlopen(req, timeout=FETCH_TIMEOUT_SEC) as r:
+                data = json.loads(r.read().decode("utf-8"))
+                return data[0] if data else None
+    except asyncio.TimeoutError:
+        print("Database Error: request timed out (connect_sheet_async)")
+    except Exception as e:
+        print(f"Database Error: {e}")
+    return None
+
+
+async def connect_sheet_all_async():
+    url = f"{SUPABASE_URL}/rest/v1/products"
+    headers = {"apikey": SUPABASE_ANON_KEY, "Authorization": f"Bearer {SUPABASE_ANON_KEY}"}
+
+    try:
+        if sys.platform == "emscripten":
+            response = await asyncio.wait_for(
+                pyfetch(url, method="GET", headers=headers), timeout=FETCH_TIMEOUT_SEC
+            )
+            if response.status == 200:
+                data = await response.json()
+                if isinstance(data, list):
+                    return data
+                print(f"Database Error: unexpected response: {data}")
+            else:
+                print(f"Database Error: HTTP {response.status}")
+        else:
+            req = urllib_req.Request(url, headers=headers)
+            with urllib_req.urlopen(req, timeout=FETCH_TIMEOUT_SEC) as r:
+                data = json.loads(r.read().decode("utf-8"))
+                if isinstance(data, list):
+                    return data
+                print(f"Database Error: unexpected response: {data}")
+    except asyncio.TimeoutError:
+        print("Database Error: request timed out (connect_sheet_all_async)")
+    except Exception as e:
+        print(f"Database Error: {e}")
+    return []
+
+
+def get_translated_name(lang, item_id):
+    if lang not in ITEM_NAMES:
+        lang = "ja"
+    return ITEM_NAMES[lang].get(item_id, item_id)
+
+
+class RoundButton(ft.Container):
+    def __init__(self, label="", text_text="", on_click=None):
+        super().__init__()
+        if text_text:
+            self.content = ft.Column([
+                ft.Text(label, size=20, color=ft.Colors.WHITE),
+                ft.Text(text_text, size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
+            ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=1)
+            self.padding = ft.Padding(0, 12, 0, 12)
+        else:
+            self.content = ft.Text(label, size=24, color=ft.Colors.WHITE)
+            self.padding = ft.Padding(0, 6, 0, 6)
+        self.bgcolor = BRAND_GREEN
+        self.shape = ft.BoxShape.CIRCLE
+        self.width = 70
+        self.height = 70
+        self.on_click = on_click
+
+
+class BottomMenuBar(ft.Container):
+    def __init__(self, current_screen, on_change_screen, lang):
+        super().__init__()
+        if lang not in LANG_TEXTS:
+            lang = "ja"
+
+        t = LANG_TEXTS[lang]
+
+        def make_nav_btn(label, text, target):
+            is_active = current_screen == target or (target == "itemtype_widget" and current_screen == "list_widget")
+            return ft.GestureDetector(
+                content=ft.Column([
+                    ft.Text(label, size=20, color=ft.Colors.WHITE if is_active else "#999999"),
+                    ft.Text(text, size=12, color=ft.Colors.WHITE if is_active else "#999999", weight=ft.FontWeight.BOLD if is_active else ft.FontWeight.NORMAL),
+                ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=2),
+                on_tap=lambda _: on_change_screen(target)
+            )
+
+        self.content = ft.Row([
+            make_nav_btn("🏠", t["title_main"], "main"),
+            make_nav_btn("📋", t["title_list"], "itemtype_widget"),
+            RoundButton(label="📷", text_text="スキャン", on_click=lambda _: on_change_screen("scan_widget")),
+            make_nav_btn("🕒", t["title_history"], "history_widget"),
+            make_nav_btn("⚙️", t["title_settings"], "settings_widget"),
+        ], alignment=ft.MainAxisAlignment.SPACE_AROUND, vertical_alignment=ft.CrossAxisAlignment.CENTER)
+        self.bgcolor = DARK_BG
+        self.border_radius = 25
+        self.height = 65
+        self.margin = ft.Margin(10, 0, 10, 15)
+        self.padding = ft.Padding(10, 0, 10, 0)
+
+
+def get_main_content(lang):
+    t = LANG_TEXTS[lang]
+    return ft.Stack([
+        ft.Container(bgcolor=BRAND_GREEN, expand=True),
+        ft.Container(
+            bgcolor=ft.Colors.TRANSPARENT,
+            padding=20,
+            content=ft.Column([
+                ft.Container(
+                    content=ft.Text(t["important_notice"], color="#333333", size=14),
+                    bgcolor=ft.Colors.with_opacity(0.5, ft.Colors.WHITE),
+                    border_radius=15,
+                    padding=10,
+                    height=80,
                     alignment=ft.alignment.center_left
                 ),
                 ft.Button(
