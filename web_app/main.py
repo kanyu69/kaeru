@@ -193,7 +193,6 @@ def get_main_content(lang):
                     height=55,
                     width=float("inf"),
                     url="https://social-action.xyz/boycott_form/",
-                    url_target=ft.UrlTarget.BLANK,
                     style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10))
                 ),
             ], spacing=15)
