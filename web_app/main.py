@@ -18,6 +18,7 @@ LIGHT_GRAY = "#F5F7FA"
 # 背景画像
 TOP_BG_IMAGE = "https://raw.githubusercontent.com/kanyu69/kaeru/main/top.png"
 OTHER_BG_IMAGE = "https://raw.githubusercontent.com/kanyu69/kaeru/main/back.png"
+SCAN_BG_IMAGE = "https://raw.githubusercontent.com/kanyu69/kaeru/main/back_br.png"
 
 # 翻訳データの定義
 ITEM_NAMES = {
@@ -228,7 +229,6 @@ def get_itemtype_content(lang, on_select_category):
 
     return ft.Stack([
         ft.Container(image=ft.DecorationImage(src=OTHER_BG_IMAGE, fit=ft.BoxFit.COVER), expand=True),
-        ft.Container(bgcolor=ft.Colors.with_opacity(0.85, ft.Colors.WHITE), expand=True),
         ft.Container(
             padding=10,
             expand=True,
@@ -289,7 +289,6 @@ def get_list_widget_content(lang, category_id, products):
 
     return ft.Stack([
         ft.Container(image=ft.DecorationImage(src=OTHER_BG_IMAGE, fit=ft.BoxFit.COVER), expand=True),
-        ft.Container(bgcolor=ft.Colors.with_opacity(0.85, ft.Colors.WHITE), expand=True),
         ft.Container(
             padding=10,
             expand=True,
@@ -306,8 +305,7 @@ def get_scan_content(lang, on_search):
     jan_input = ft.TextField(label="JAN Code", hint_text="e.g. 4901234567890", keyboard_type=ft.KeyboardType.NUMBER)
 
     return ft.Stack([
-        ft.Container(image=ft.DecorationImage(src=OTHER_BG_IMAGE, fit=ft.BoxFit.COVER), expand=True),
-        ft.Container(bgcolor=ft.Colors.with_opacity(0.75, ft.Colors.BLACK), expand=True),
+        ft.Container(image=ft.DecorationImage(src=SCAN_BG_IMAGE, fit=ft.BoxFit.COVER), expand=True),
         ft.Container(
             padding=20,
             expand=True,
@@ -352,7 +350,6 @@ def get_history_content(lang, history_list, on_clear):
 
     return ft.Stack([
         ft.Container(image=ft.DecorationImage(src=OTHER_BG_IMAGE, fit=ft.BoxFit.COVER), expand=True),
-        ft.Container(bgcolor=ft.Colors.with_opacity(0.85, ft.Colors.WHITE), expand=True),
         ft.Container(
             padding=10,
             expand=True,
@@ -371,7 +368,6 @@ def get_settings_content(lang, on_toggle_lang):
     t = LANG_TEXTS[lang]
     return ft.Stack([
         ft.Container(image=ft.DecorationImage(src=OTHER_BG_IMAGE, fit=ft.BoxFit.COVER), expand=True),
-        ft.Container(bgcolor=ft.Colors.with_opacity(0.85, ft.Colors.WHITE), expand=True),
         ft.Container(
             padding=15,
             expand=True,
