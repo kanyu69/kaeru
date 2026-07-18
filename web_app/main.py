@@ -261,7 +261,7 @@ def get_list_widget_content(lang, category_id, products):
                         content=ft.Container(
                             padding=10,
                             content=ft.Row([
-                                ft.Image(src=img_path, width=60, height=60, fit=ft.ImageFit.CONTAIN),
+                                ft.Image(src=img_path, width=60, height=60, fit=ft.BoxFit.CONTAIN),
                                 ft.Column([
                                     ft.Text(row.get("product_name", ""), size=16, weight=ft.FontWeight.BOLD, color="#262626"),
                                     ft.Text(f"{t['company']}: {row.get('company_name', '')}", size=12, color="#555555"),
@@ -318,7 +318,7 @@ def get_history_content(lang, history_list, on_clear):
                 content=ft.Container(
                     padding=10,
                     content=ft.Row([
-                        ft.Image(src=item['image_path'], width=50, height=50, fit=ft.ImageFit.CONTAIN),
+                        ft.Image(src=item['image_path'], width=50, height=50, fit=ft.BoxFit.CONTAIN),
                         ft.Column([
                             ft.Text(item['product_name'], size=14, weight=ft.FontWeight.BOLD, color="#262626"),
                             ft.Text(item['item_usage'], size=12, color=ft.Colors.RED_600),
