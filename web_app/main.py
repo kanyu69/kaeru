@@ -15,6 +15,10 @@ BRAND_GREEN = "#339966"
 DARK_BG = "#262626"
 LIGHT_GRAY = "#F5F7FA"
 
+# 背景画像
+TOP_BG_IMAGE = "https://raw.githubusercontent.com/kanyu69/kaeru/main/top.png"
+OTHER_BG_IMAGE = "https://raw.githubusercontent.com/kanyu69/kaeru/main/back.png"
+
 # 翻訳データの定義
 ITEM_NAMES = {
     "ja": {
@@ -175,7 +179,11 @@ class BottomMenuBar(ft.Container):
 def get_main_content(lang):
     t = LANG_TEXTS[lang]
     return ft.Stack([
-        ft.Container(bgcolor=BRAND_GREEN, expand=True),
+        ft.Container(
+            bgcolor=BRAND_GREEN,  # 画像読み込み前/失敗時のフォールバック色
+            image=ft.DecorationImage(src=TOP_BG_IMAGE, fit=ft.BoxFit.COVER),
+            expand=True
+        ),
         ft.Container(
             bgcolor=ft.Colors.TRANSPARENT,
             padding=20,
@@ -218,15 +226,18 @@ def get_itemtype_content(lang, on_select_category):
             )
         )
 
-    return ft.Container(
-        bgcolor=LIGHT_GRAY,
-        padding=10,
-        expand=True,
-        content=ft.Column([
-            ft.Text(LANG_TEXTS[lang]["title_list"], size=22, weight=ft.FontWeight.BOLD, color="#262626"),
-            ft.Card(content=ft.Container(content=ft.Column(list_items), padding=10))
-        ])
-    )
+    return ft.Stack([
+        ft.Container(image=ft.DecorationImage(src=OTHER_BG_IMAGE, fit=ft.BoxFit.COVER), expand=True),
+        ft.Container(bgcolor=ft.Colors.with_opacity(0.85, ft.Colors.WHITE), expand=True),
+        ft.Container(
+            padding=10,
+            expand=True,
+            content=ft.Column([
+                ft.Text(LANG_TEXTS[lang]["title_list"], size=22, weight=ft.FontWeight.BOLD, color="#262626"),
+                ft.Card(content=ft.Container(content=ft.Column(list_items), padding=10))
+            ])
+        )
+    ], expand=True)
 
 
 def get_list_widget_content(lang, category_id, products):
@@ -276,37 +287,43 @@ def get_list_widget_content(lang, category_id, products):
         if not cards:
             cards.append(ft.Text("No items found.", color="#262626"))
 
-    return ft.Container(
-        bgcolor=LIGHT_GRAY,
-        padding=10,
-        expand=True,
-        content=ft.Column([
-            ft.Text(f"{get_translated_name(lang, category_id)} {t['title_list']}", size=20, weight=ft.FontWeight.BOLD, color="#262626"),
-            ft.Column(cards, scroll=ft.ScrollMode.AUTO, expand=True)
-        ], expand=True)
-    )
+    return ft.Stack([
+        ft.Container(image=ft.DecorationImage(src=OTHER_BG_IMAGE, fit=ft.BoxFit.COVER), expand=True),
+        ft.Container(bgcolor=ft.Colors.with_opacity(0.85, ft.Colors.WHITE), expand=True),
+        ft.Container(
+            padding=10,
+            expand=True,
+            content=ft.Column([
+                ft.Text(f"{get_translated_name(lang, category_id)} {t['title_list']}", size=20, weight=ft.FontWeight.BOLD, color="#262626"),
+                ft.Column(cards, scroll=ft.ScrollMode.AUTO, expand=True)
+            ], expand=True)
+        )
+    ], expand=True)
 
 
 def get_scan_content(lang, on_search):
     t = LANG_TEXTS[lang]
     jan_input = ft.TextField(label="JAN Code", hint_text="e.g. 4901234567890", keyboard_type=ft.KeyboardType.NUMBER)
 
-    return ft.Container(
-        bgcolor=ft.Colors.BLACK,
-        padding=20,
-        expand=True,
-        content=ft.Column([
-            ft.Text("Scan Simulator", size=22, color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD),
-            ft.Text(t["input_area"], color=ft.Colors.WHITE, size=14),
-            jan_input,
-            ft.Button(
-                content=ft.Text(t["search_btn"], color=ft.Colors.WHITE),
-                on_click=lambda _: on_search(jan_input.value),
-                width=float("inf"),
-                style=ft.ButtonStyle(bgcolor=BRAND_GREEN)
-            )
-        ], alignment=ft.MainAxisAlignment.CENTER, spacing=20)
-    )
+    return ft.Stack([
+        ft.Container(image=ft.DecorationImage(src=OTHER_BG_IMAGE, fit=ft.BoxFit.COVER), expand=True),
+        ft.Container(bgcolor=ft.Colors.with_opacity(0.75, ft.Colors.BLACK), expand=True),
+        ft.Container(
+            padding=20,
+            expand=True,
+            content=ft.Column([
+                ft.Text("Scan Simulator", size=22, color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD),
+                ft.Text(t["input_area"], color=ft.Colors.WHITE, size=14),
+                jan_input,
+                ft.Button(
+                    content=ft.Text(t["search_btn"], color=ft.Colors.WHITE),
+                    on_click=lambda _: on_search(jan_input.value),
+                    width=float("inf"),
+                    style=ft.ButtonStyle(bgcolor=BRAND_GREEN)
+                )
+            ], alignment=ft.MainAxisAlignment.CENTER, spacing=20)
+        )
+    ], expand=True)
 
 
 def get_history_content(lang, history_list, on_clear):
@@ -333,48 +350,54 @@ def get_history_content(lang, history_list, on_clear):
     if not cards:
         cards.append(ft.Container(content=ft.Text(t["no_history"], color="#262626"), alignment=ft.Alignment.CENTER, padding=20))
 
-    return ft.Container(
-        bgcolor=LIGHT_GRAY,
-        padding=10,
-        expand=True,
-        content=ft.Column([
-            ft.Row([
-                ft.Text(t["title_history"], size=22, weight=ft.FontWeight.BOLD, color="#262626"),
-                ft.TextButton(content=ft.Text(t["clear_history"], color=ft.Colors.RED), on_click=on_clear)
-            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-            ft.Column(cards, scroll=ft.ScrollMode.AUTO, expand=True)
-        ], expand=True)
-    )
+    return ft.Stack([
+        ft.Container(image=ft.DecorationImage(src=OTHER_BG_IMAGE, fit=ft.BoxFit.COVER), expand=True),
+        ft.Container(bgcolor=ft.Colors.with_opacity(0.85, ft.Colors.WHITE), expand=True),
+        ft.Container(
+            padding=10,
+            expand=True,
+            content=ft.Column([
+                ft.Row([
+                    ft.Text(t["title_history"], size=22, weight=ft.FontWeight.BOLD, color="#262626"),
+                    ft.TextButton(content=ft.Text(t["clear_history"], color=ft.Colors.RED), on_click=on_clear)
+                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                ft.Column(cards, scroll=ft.ScrollMode.AUTO, expand=True)
+            ], expand=True)
+        )
+    ], expand=True)
 
 
 def get_settings_content(lang, on_toggle_lang):
     t = LANG_TEXTS[lang]
-    return ft.Container(
-        bgcolor=LIGHT_GRAY,
-        padding=15,
-        expand=True,
-        content=ft.Column([
-            ft.Text(t["title_settings"], size=22, weight=ft.FontWeight.BOLD, color="#262626"),
-            ft.Card(
-                content=ft.Container(
-                    padding=15,
-                    content=ft.Column([
-                        ft.Row([
-                            ft.Text("🌐", size=20),
-                            ft.Text(t["lang_setting"], size=16, weight=ft.FontWeight.BOLD, color="#262626")
-                        ], spacing=10),
-                        ft.Text(t["lang_desc"], size=12, color="#666666"),
-                        ft.Divider(height=10, color=ft.Colors.TRANSPARENT),
-                        ft.Row([
-                            ft.Text("日本語", size=14, weight=ft.FontWeight.BOLD if lang == "ja" else ft.FontWeight.NORMAL, color=BRAND_GREEN if lang == "ja" else "#888888"),
-                            ft.Switch(value=(lang == "en"), active_track_color=BRAND_GREEN, on_change=lambda e: on_toggle_lang(e.control.value)),
-                            ft.Text("English", size=14, weight=ft.FontWeight.BOLD if lang == "en" else ft.FontWeight.NORMAL, color=BRAND_GREEN if lang == "en" else "#888888"),
-                        ], alignment=ft.MainAxisAlignment.CENTER, spacing=10)
-                    ], spacing=5)
+    return ft.Stack([
+        ft.Container(image=ft.DecorationImage(src=OTHER_BG_IMAGE, fit=ft.BoxFit.COVER), expand=True),
+        ft.Container(bgcolor=ft.Colors.with_opacity(0.85, ft.Colors.WHITE), expand=True),
+        ft.Container(
+            padding=15,
+            expand=True,
+            content=ft.Column([
+                ft.Text(t["title_settings"], size=22, weight=ft.FontWeight.BOLD, color="#262626"),
+                ft.Card(
+                    content=ft.Container(
+                        padding=15,
+                        content=ft.Column([
+                            ft.Row([
+                                ft.Text("🌐", size=20),
+                                ft.Text(t["lang_setting"], size=16, weight=ft.FontWeight.BOLD, color="#262626")
+                            ], spacing=10),
+                            ft.Text(t["lang_desc"], size=12, color="#666666"),
+                            ft.Divider(height=10, color=ft.Colors.TRANSPARENT),
+                            ft.Row([
+                                ft.Text("日本語", size=14, weight=ft.FontWeight.BOLD if lang == "ja" else ft.FontWeight.NORMAL, color=BRAND_GREEN if lang == "ja" else "#888888"),
+                                ft.Switch(value=(lang == "en"), active_track_color=BRAND_GREEN, on_change=lambda e: on_toggle_lang(e.control.value)),
+                                ft.Text("English", size=14, weight=ft.FontWeight.BOLD if lang == "en" else ft.FontWeight.NORMAL, color=BRAND_GREEN if lang == "en" else "#888888"),
+                            ], alignment=ft.MainAxisAlignment.CENTER, spacing=10)
+                        ], spacing=5)
+                    )
                 )
-            )
-        ], spacing=15)
-    )
+            ], spacing=15)
+        )
+    ], expand=True)
 
 
 async def main(page: ft.Page):
