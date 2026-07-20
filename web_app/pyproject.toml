@@ -1,0 +1,13 @@
+[project]
+name = "kaeru"
+version = "1.0.0"
+description = "Barcode reader for BDS"
+
+[tool.flet]
+org = "com.kanyu69"
+product = "Kaeru"
+
+[tool.flet.splash]
+color = "#339966"
+dark_color = "#339966"
+web = true
