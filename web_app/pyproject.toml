@@ -2,14 +2,10 @@
 name = "kaeru"
 version = "1.0.0"
 description = "Barcode reader for BDS"
-dependencies = [
-    "flet-camera"
-]
 
 [tool.flet]
 org = "com.kanyu69"
 product = "Kaeru"
-permissions = ["camera"]
 
 [tool.flet.splash]
 color = "#339966"
