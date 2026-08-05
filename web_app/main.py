@@ -388,8 +388,6 @@ async def main(page: ft.Page):
     scan_search_btn_text = ft.Text(LANG_TEXTS["ja"]["search_btn"], color=ft.Colors.WHITE)
     jan_input = ft.TextField(label="JAN Code", hint_text="e.g. 4901234567890", keyboard_type=ft.KeyboardType.NUMBER)
 
-    scan_camera_status_text = ft.Text("", color=ft.Colors.WHITE, size=13)
-
     scan_screen_container = ft.Stack([
         ft.Container(image=ft.DecorationImage(src=SCAN_BG_IMAGE, fit=ft.BoxFit.COVER), expand=True),
         ft.Container(
@@ -399,11 +397,10 @@ async def main(page: ft.Page):
                 ft.Text("バーコードスキャン", size=22, color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD),
                 ft.Button(
                     content=ft.Text("📷 カメラでスキャン", color=ft.Colors.WHITE),
-                    on_click=lambda _: page.run_task(handle_start_camera_scan_async),
+                    url="scan.html",
                     width=float("inf"),
                     style=ft.ButtonStyle(bgcolor=BRAND_GREEN)
                 ),
-                scan_camera_status_text,
                 ft.Divider(height=1, color=ft.Colors.with_opacity(0.3, ft.Colors.WHITE)),
                 scan_input_area_text,
                 jan_input,
@@ -421,126 +418,6 @@ async def main(page: ft.Page):
     main_content_area = ft.Container(expand=True, bgcolor=ft.Colors.TRANSPARENT)
     bottom_bar_container = ft.Container()
     app_layout = ft.Column([main_content_area, bottom_bar_container], spacing=0, expand=True)
-
-    # ブラウザ全画面に、カメラ映像＋ZXing-js(無料JSライブラリ)によるバーコード検出UIを注入するJS。
-    # Fletのウィジェットではなく、生のHTML要素をbodyに直接追加する方式（座標合わせ不要で確実なため）。
-    SCAN_JS_START = """
-(function() {
-  if (window.__kaeru_scan_starting) { return; }
-  window.__kaeru_scan_starting = true;
-  window.__kaeru_scan_result = "";
-
-  function loadZXing(cb) {
-    if (window.ZXing) { cb(); return; }
-    var s = document.createElement("script");
-    s.src = "https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js";
-    s.onload = cb;
-    s.onerror = function() { window.__kaeru_scan_result = "__ERROR__:ZXingの読み込みに失敗しました"; };
-    document.head.appendChild(s);
-  }
-
-  function buildOverlay() {
-    var overlay = document.createElement("div");
-    overlay.id = "kaeru-scan-overlay";
-    overlay.style.cssText = "position:fixed;top:0;left:0;width:100vw;height:100vh;background:#000;z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:center;";
-
-    var title = document.createElement("div");
-    title.textContent = "バーコードを枠内に映してください";
-    title.style.cssText = "color:#fff;font-size:16px;margin-bottom:12px;font-family:sans-serif;";
-
-    var video = document.createElement("video");
-    video.id = "kaeru-scan-video";
-    video.style.cssText = "width:90%;max-width:480px;border-radius:12px;background:#111;";
-    video.setAttribute("playsinline", "true");
-    video.setAttribute("muted", "true");
-
-    var cancelBtn = document.createElement("button");
-    cancelBtn.textContent = "キャンセル";
-    cancelBtn.style.cssText = "margin-top:20px;padding:10px 28px;font-size:14px;background:#339966;color:#fff;border:none;border-radius:8px;";
-    cancelBtn.onclick = function() { window.__kaeru_scan_result = "__CANCELLED__"; };
-
-    overlay.appendChild(title);
-    overlay.appendChild(video);
-    overlay.appendChild(cancelBtn);
-    document.body.appendChild(overlay);
-    return video;
-  }
-
-  window.__kaeru_stop_scan = function() {
-    try { if (window.__kaeru_scan_reader) { window.__kaeru_scan_reader.reset(); } } catch(e) {}
-    try {
-      var v = document.getElementById("kaeru-scan-video");
-      if (v && v.srcObject) { v.srcObject.getTracks().forEach(function(t){ t.stop(); }); }
-    } catch(e) {}
-    var el = document.getElementById("kaeru-scan-overlay");
-    if (el) { el.remove(); }
-    window.__kaeru_scan_starting = false;
-  };
-
-  loadZXing(function() {
-    try {
-      var video = buildOverlay();
-      var reader = new ZXing.BrowserMultiFormatReader();
-      window.__kaeru_scan_reader = reader;
-      reader.decodeFromConstraints(
-        { video: { facingMode: "environment" } },
-        video,
-        function(result, err) {
-          if (result) { window.__kaeru_scan_result = result.getText(); }
-        }
-      );
-    } catch (e) {
-      window.__kaeru_scan_result = "__ERROR__:" + e;
-    }
-  });
-})();
-"""
-
-    SCAN_JS_POLL = "window.__kaeru_scan_result || ''"
-    SCAN_JS_STOP = "window.__kaeru_stop_scan && window.__kaeru_stop_scan();"
-
-    async def handle_start_camera_scan_async():
-        scan_camera_status_text.value = "カメラを起動しています..."
-        await refresh_ui_async()
-
-        try:
-            page.run_javascript(SCAN_JS_START)
-        except Exception as e:
-            scan_camera_status_text.value = f"カメラの起動に失敗しました: {e}"
-            await refresh_ui_async()
-            return
-
-        result_code = None
-        try:
-            # 最大60秒、0.4秒おきに検出結果をポーリングする
-            for _ in range(150):
-                await asyncio.sleep(0.4)
-                try:
-                    val = page.run_javascript(SCAN_JS_POLL)
-                except Exception:
-                    val = ""
-                if val:
-                    result_code = val
-                    break
-        finally:
-            try:
-                page.run_javascript(SCAN_JS_STOP)
-            except Exception:
-                pass
-
-        if not result_code or result_code == "__CANCELLED__":
-            scan_camera_status_text.value = ""
-            await refresh_ui_async()
-            return
-
-        if result_code.startswith("__ERROR__:"):
-            scan_camera_status_text.value = f"読み取りエラー: {result_code[len('__ERROR__:'):]}"
-            await refresh_ui_async()
-            return
-
-        scan_camera_status_text.value = f"バーコードを検出しました: {result_code}"
-        await refresh_ui_async()
-        await handle_barcode_search_async(result_code)
 
     async def handle_barcode_search_async(jan_code):
         if not jan_code:
@@ -651,6 +528,19 @@ async def main(page: ft.Page):
 
     page.add(app_layout)
     await refresh_ui_async()
+
+    # scan.html（カメラ読み取り専用の別ページ）から、
+    # "#/scanresult/<バーコード>" という形式のURLで戻ってきた場合、
+    # そのバーコードで自動的に検索を実行する。
+    try:
+        route = page.route or ""
+    except Exception:
+        route = ""
+    if route.startswith("/scanresult/"):
+        from urllib.parse import unquote
+        scanned_code = unquote(route[len("/scanresult/"):]).strip()
+        if scanned_code:
+            await handle_barcode_search_async(scanned_code)
 
 
 ft.run(main)
