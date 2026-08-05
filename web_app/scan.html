@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>バーコードスキャン</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #262626;
+    height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Segoe UI", sans-serif;
+    color: #fff;
+  }
+  .wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100%;
+    padding: 20px;
+    box-sizing: border-box;
+  }
+  h1 {
+    font-size: 18px;
+    margin: 0 0 16px 0;
+    text-align: center;
+  }
+  #status {
+    font-size: 14px;
+    margin-bottom: 14px;
+    text-align: center;
+    min-height: 20px;
+    color: #ddd;
+  }
+  video {
+    width: 100%;
+    max-width: 480px;
+    border-radius: 12px;
+    background: #111;
+  }
+  .btn {
+    margin-top: 20px;
+    padding: 12px 32px;
+    font-size: 15px;
+    background: #339966;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    text-decoration: none;
+    display: inline-block;
+    cursor: pointer;
+  }
+  .btn:active {
+    opacity: 0.8;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>バーコードを枠内に映してください</h1>
+  <div id="status">カメラを起動しています...</div>
+  <video id="video" playsinline muted></video>
+  <a class="btn" id="cancelBtn" href="./">キャンセル</a>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
+<script>
+(function () {
+  var statusEl = document.getElementById("status");
+  var video = document.getElementById("video");
+  var reader = null;
+  var redirected = false;
+
+  function goBackWithCode(code) {
+    if (redirected) return;
+    redirected = true;
+    stopCamera();
+    // Fletアプリ（同じディレクトリのindex.html）に、
+    // 読み取ったバーコードをルートとして埋め込んで戻る
+    window.location.href = "./#/scanresult/" + encodeURIComponent(code);
+  }
+
+  function stopCamera() {
+    try {
+      if (reader) { reader.reset(); }
+    } catch (e) {}
+    try {
+      if (video.srcObject) {
+        video.srcObject.getTracks().forEach(function (t) { t.stop(); });
+      }
+    } catch (e) {}
+  }
+
+  window.addEventListener("beforeunload", stopCamera);
+
+  if (typeof ZXing === "undefined") {
+    statusEl.textContent = "読み取りライブラリの読み込みに失敗しました。通信環境を確認して開き直してください。";
+    return;
+  }
+
+  try {
+    reader = new ZXing.BrowserMultiFormatReader();
+    reader.decodeFromConstraints(
+      { video: { facingMode: "environment" } },
+      video,
+      function (result, err) {
+        if (result) {
+          statusEl.textContent = "読み取りました: " + result.getText();
+          goBackWithCode(result.getText());
+        }
+      }
+    ).then(function () {
+      statusEl.textContent = "バーコードを枠内に映してください";
+    }).catch(function (e) {
+      statusEl.textContent = "カメラを起動できませんでした: " + e;
+    });
+  } catch (e) {
+    statusEl.textContent = "エラーが発生しました: " + e;
+  }
+})();
+</script>
+</body>
+</html>
